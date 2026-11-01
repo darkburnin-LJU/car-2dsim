@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <!-- 휴대폰에서 화면 폭을 그대로 쓰게 하기 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2D 자동차 시뮬레이션 - 6단계</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f0f0f0;
+      font-family: sans-serif;
+    }
+    h1 {
+      text-align: center;
+    }
+    /* 전체 틀: 위에서 아래로 쌓기. 창을 아무리 키워도 이 폭보다 넓어지지 않음 */
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    /* 지도 줄: 그림판 + 오른쪽 확대/축소 버튼 */
+    .map-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    canvas {
+      background: #7ec850; /* 잔디색 바탕 */
+      border: 2px solid #333;
+      box-sizing: border-box;
+      display: block;
+      flex: 1 1 auto;
+      min-width: 0;        /* 좁은 화면에서 그림판이 줄어들 수 있게 */
+      width: 100%;
+      max-width: 800px;
+      height: auto;        /* 가로세로 비율 유지 */
+    }
+    .zoom-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+    button {
+      padding: 10px 16px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .zoom-buttons button {
+      padding: 8px 10px;
+      font-size: 16px;
+      white-space: nowrap;
+    }
+    /* 버튼 3개 한 줄: 같은 폭, 글자가 길면 버튼 안에서 줄바꿈 */
+    .control-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      max-width: 800px;
+    }
+    #brakeBtn {
+      background: #c22;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      user-select: none;   /* 길게 눌러도 글자가 선택되지 않게 */
+      touch-action: none;  /* 휴대폰에서 길게 눌러도 메뉴가 안 뜨게 */
+    }
+    #brakeBtn.pressed {
+      background: #800;
+    }
+    #brakeLatchBtn {
+      background: #fff;
+      color: #c22;
+      border: 2px solid #c22;
+      border-radius: 4px;
+    }
+    /* 브레이크 작동 중 */
+    #brakeLatchBtn.latched {
+      background: #ffb300;
+      color: #000;
+      border-color: #a06800;
+      font-weight: bold;
+    }
+    /* 제동거리 칸 */
+    .brake-panel {
+      max-width: 800px;
+      box-sizing: border-box;
+      background: #fff;
+      border: 2px solid #c22;
+      border-radius: 6px;
+      padding: 10px 14px;
+    }
+    .brake-panel h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      color: #c22;
+    }
+    .brake-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .stat-label {
+      display: block;
+      font-size: 14px;
+      color: #555;
+    }
+    .stat-value {
+      display: block;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .stat-status {
+      display: block;
+      font-size: 14px;
+      color: #a06800;
+    }
+    .settings {
+      font-size: 18px;
+    }
+    /* 설정 한 줄: 왼쪽 이름 / 오른쪽 입력칸들, 안내 문구는 입력칸 아래 */
+    .setting-row {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      align-items: center;
+      row-gap: 4px;
+      margin: 10px 0;
+    }
+    .setting-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+    .setting-row input[type="range"] {
+      width: 180px;
+    }
+    .setting-row input[type="text"] {
+      width: 70px;
+      font-size: 18px;
+      padding: 4px;
+    }
+    .setting-row .unit {
+      display: inline-block;
+      width: 50px;
+    }
+    .setting-row button {
+      padding: 4px 14px;
+      font-size: 16px;
+    }
+    /* 글자를 쓰려고 고른 입력칸 (노란 "확인 안 누름"과 헷갈리지 않게 파란색) */
+    .setting-row input[type="text"]:focus {
+      outline: 2px solid #2a7de1;
+    }
+    /* 확인을 아직 안 누른 입력칸 */
+    .setting-row input.pending {
+      border: 3px solid #f0b400;
+      background: #fff8dc;
+      outline: none;
+    }
+    .error {
+      grid-column: 2;
+      color: #c00;
+      font-size: 15px;
+    }
+    .error:empty {
+      display: none;
+    }
+    .error.pending {
+      color: #a06800;
+    }
+    .error.info {
+      color: #555;
+    }
+
+    /* 좁은 화면(휴대폰) */
+    @media (max-width: 600px) {
+      body {
+        padding: 12px;
+      }
+      h1 {
+        font-size: 22px;
+      }
+      button {
+        font-size: 16px;
+      }
+      .control-row button {
+        padding: 10px 6px;
+      }
+      /* 제동거리 3칸을 세로로 */
+      .brake-stats {
+        grid-template-columns: 1fr;
+      }
+      /* 이름 아래에 입력칸이 오게 */
+      .setting-row {
+        grid-template-columns: 1fr;
+      }
+      .error {
+        grid-column: 1;
+      }
+      .setting-row input[type="range"] {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>2D 자동차 시뮬레이션 (6단계)</h1>
+
+  <div class="page">
+    <!-- 1. 지도(그림판) + 오른쪽 확대/축소 버튼 -->
+    <div class="map-row">
+      <canvas id="sim" width="800" height="300"></canvas>
+      <div class="zoom-buttons">
+        <button id="zoomInBtn">확대 +</button>
+        <button id="zoomOutBtn">축소 −</button>
+      </div>
+    </div>
+
+    <!-- 2. 버튼 3개 한 줄 -->
+    <div class="control-row">
+      <button id="toggleBtn">시작</button>
+      <button id="brakeBtn">브레이크 (누르고 있기)</button>
+      <button id="brakeLatchBtn">브레이크 작동</button>
+    </div>
+
+    <!-- 3. 제동거리 -->
+    <div class="brake-panel">
+      <h2>제동거리</h2>
+      <div class="brake-stats">
+        <div>
+          <span class="stat-label">브레이크 시작 속도</span>
+          <span class="stat-value" id="statStartSpeed">-</span>
+        </div>
+        <div>
+          <span class="stat-label">브레이크 구간 거리</span>
+          <span class="stat-value" id="statSegment">-</span>
+        </div>
+        <div>
+          <span class="stat-label">정지까지 제동거리</span>
+          <span class="stat-value" id="statStop">-</span>
+          <span class="stat-status" id="statStopStatus"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 설정: 입력칸 + 단위 + 확인 버튼, 아래에 안내 문구 -->
+    <div class="settings">
+      <div class="setting-row">
+        <label for="speedSlider">목표 속도</label>
+        <div class="setting-controls">
+          <input type="range" id="speedSlider" min="0" max="300" step="1">
+          <input type="text" id="speedInput" inputmode="numeric">
+          <span class="unit">km/h</span>
+          <button id="speedOk">확인</button>
+        </div>
+        <span class="error" id="speedError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="accelInput">가속도</label>
+        <div class="setting-controls">
+          <input type="text" id="accelInput" inputmode="decimal">
+          <span class="unit">m/s²</span>
+          <button id="accelOk">확인</button>
+        </div>
+        <span class="error" id="accelError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="decelInput">감속도</label>
+        <div class="setting-controls">
+          <input type="text" id="decelInput" inputmode="decimal">
+          <span class="unit">m/s²</span>
+          <button id="decelOk">확인</button>
+        </div>
+        <span class="error" id="decelError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="brakeInput">브레이크 감속도</label>
+        <div class="setting-controls">
+          <input type="text" id="brakeInput" inputmode="decimal">
+          <span class="unit">m/s²</span>
+          <button id="brakeOk">확인</button>
+        </div>
+        <span class="error" id="brakeError"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== 쉽게 바꿀 수 있는 값 (처음 열었을 때의 기본값) =====
+    // 가속도·감속도 단위: m/s² (1초마다 속도가 몇 m/s 바뀌는지)
+    // 화면의 입력칸으로도 바꿀 수 있어서 const 대신 let을 씀
+    let ACCELERATION = 2.5;  // 가속도: 목표 속도보다 느릴 때 (0→100km/h 약 11초)
+    let DECELERATION = 3.0;  // 감속도: 목표 속도보다 빠를 때 (가볍게 브레이크 밟는 정도)
+    let BRAKE_DECELERATION = 7.0; // 브레이크 감속도: 브레이크 버튼을 누르는 동안 (급제동 정도)
+    const START_TARGET_KMH = 60;  // 처음 목표 속도(km/h)
+
+    // 입력칸 허용 범위
+    const SPEED_MIN = 0, SPEED_MAX = 300;   // km/h (정수만)
+    const ACCEL_MIN = 0, ACCEL_MAX = 10;    // m/s² (1g = 9.8 m/s², 타이어가 버틸 수 있는 한계 정도)
+
+    // 도로·자동차·화면
+    const ROAD_LENGTH_M = 200;   // 도로 전체 길이(m). 1000으로 바꾸면 1 km 도로
+    const CAR_LENGTH_M = 4.5;    // 자동차 길이(m)
+    const CAR_WIDTH_M = 1.8;     // 자동차 폭(m)
+    const START_VIEW_M = 50;     // 처음 화면에 보이는 도로 길이(m)
+    const MIN_VIEW_M = 25;       // 최대로 확대했을 때 화면에 보이는 길이(m)
+    const ZOOM_STEP = 1.2;       // 휠 한 칸 / 버튼 한 번에 화면 폭이 몇 배 바뀌는지
+    const MIN_TICK_GAP_PX = 60;  // 눈금 사이 최소 간격(픽셀)
+    const MIN_CAR_DRAW_PX = 12;  // 차 그림 최소 길이(픽셀). 계산은 실제 크기 그대로
+    const MAX_DT = 0.05;         // 한 번에 계산하는 시간 상한(초). 창을 바꿨다 와도 순간이동 안 하게
+    // ===========================================================
+
+    // 1. 그림판(canvas) 준비
+    const canvas = document.getElementById("sim");
+    const ctx = canvas.getContext("2d");
+    const button = document.getElementById("toggleBtn");
+    const brakeButton = document.getElementById("brakeBtn");
+    const slider = document.getElementById("speedSlider");
+    const speedInput = document.getElementById("speedInput");
+    const speedError = document.getElementById("speedError");
+
+    // km/h ↔ m/s 바꾸기 (1 m/s = 3.6 km/h)
+    function kmhToMs(kmh) {
+      return kmh / 3.6;
+    }
+    function msToKmh(ms) {
+      return ms * 3.6;
+    }
+
+    // 2. 도로 설정 (화면에서 위아래 위치·두께, 픽셀)
+    const road = {
+      y: 100,      // 도로 윗변 위치
+      height: 100  // 도로 폭
+    };
+
+    // 3. 자동차 설정 (위치는 미터 단위)
+    const car = {
+      xM: 0,             // 차 뒤쪽 끝의 위치(m), 도로 왼쪽 끝 = 0
+      speedMs: 0,        // 현재 속도(m/s), 처음에는 멈춰 있음
+      targetSpeedKmh: START_TARGET_KMH, // 목표 속도(km/h), 슬라이더나 입력칸으로 바뀜
+      accelMs2: 0        // 지금 이 순간 실제로 받는 가속도(m/s²), +가속 / −감속
+    };
+
+    // 4. 달리는 중인지, 브레이크를 누르고 있는지 / 작동시켜 두었는지 기억하는 변수
+    let running = false;
+    let braking = false;       // "브레이크 (누르고 있기)"를 누르는 동안 true
+    let brakeLatched = false;  // "브레이크 작동"을 켜 두면 true (다시 누를 때까지 유지)
+
+    // 제동거리 기록
+    const brakeStats = {
+      wasActive: false,   // 직전에 브레이크가 켜져 있었는지 (켜짐/꺼짐 바뀌는 순간을 찾으려고)
+      startKmh: null,     // 브레이크 시작 속도(km/h), 아직 안 밟았으면 null
+      segmentM: 0,        // 브레이크 구간 거리(m): 켜져 있는 동안 달린 거리
+      stopM: 0,           // 정지까지 제동거리(m)
+      status: ""          // "측정 중" / "정지 완료" / "중간에 뗌" / "이미 정지"
+    };
+    let lastTime = null;
+
+    // 5. 줌: 화면 폭에 보이는 도로 길이(m). 최대 축소 = 도로 전체
+    const maxViewM = ROAD_LENGTH_M;
+    const minViewM = Math.min(MIN_VIEW_M, maxViewM);
+    let viewWidthM = Math.min(START_VIEW_M, maxViewM);
+
+    // 1m가 화면에서 몇 픽셀인지 (줌에 따라 바뀜)
+    function pixelsPerMeter() {
+      return canvas.width / viewWidthM;
+    }
+
+    // 카메라 왼쪽 끝 위치(m): 차를 화면 가운데에 두되, 도로 밖은 안 보이게 고정
+    function cameraLeftM() {
+      const carCenterM = car.xM + CAR_LENGTH_M / 2;
+      const left = carCenterM - viewWidthM / 2;
+      return Math.max(0, Math.min(ROAD_LENGTH_M - viewWidthM, left));
+    }
+
+    // 도로 위 위치(m) → 화면 x(픽셀)
+    function toScreenX(m, camLeft) {
+      return (m - camLeft) * pixelsPerMeter();
+    }
+
+    // 도로 그리기
+    function drawRoad(camLeft) {
+      ctx.fillStyle = "#555";
+      ctx.fillRect(0, road.y, canvas.width, road.height);
+
+      // 가운데 흰 점선: 실제 3m 선 + 5m 빈칸, 카메라가 움직이면 같이 지나감
+      const ppm = pixelsPerMeter();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 4;
+      ctx.setLineDash([3 * ppm, 5 * ppm]);
+      ctx.lineDashOffset = camLeft * ppm;
+      ctx.beginPath();
+      ctx.moveTo(0, road.y + road.height / 2);
+      ctx.lineTo(canvas.width, road.y + road.height / 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
+    }
+
+    // 눈금 단위 고르기: 10, 20, 50, 100, 200, 500, 1000 ... 중
+    // 화면 간격이 MIN_TICK_GAP_PX 이상인 가장 작은 값
+    function chooseTickStepM() {
+      const ppm = pixelsPerMeter();
+      for (let base = 10; ; base *= 10) {
+        for (const m of [1, 2, 5]) {
+          if (base * m * ppm >= MIN_TICK_GAP_PX) return base * m;
+        }
+      }
+    }
+
+    // 거리 글자: 1000m 이상은 km로
+    function formatDistance(m) {
+      return m >= 1000 ? (m / 1000) + " km" : m + " m";
+    }
+
+    // 도로 아래쪽에 눈금(짧은 선 + 거리 숫자) 그리기
+    function drawTicks(camLeft) {
+      const step = chooseTickStepM();
+      const y = road.y + road.height; // 도로 아랫변
+      ctx.strokeStyle = "#000";
+      ctx.fillStyle = "#000";
+      ctx.lineWidth = 2;
+      ctx.font = "14px sans-serif";
+
+      for (let m = Math.ceil(camLeft / step) * step; m <= camLeft + viewWidthM + 0.001; m += step) {
+        const x = toScreenX(m, camLeft);
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y + 10);
+        ctx.stroke();
+
+        // 화면 양 끝의 숫자는 잘리지 않게 안쪽으로 정렬
+        if (x < 20) ctx.textAlign = "left";
+        else if (x > canvas.width - 20) ctx.textAlign = "right";
+        else ctx.textAlign = "center";
+        ctx.fillText(formatDistance(m), x, y + 26);
+      }
+    }
+
+    // 자동차 그리기. 너무 작으면 그림만 최소 크기로 키움 → 키웠으면 true
+    function drawCar(camLeft) {
+      const ppm = pixelsPerMeter();
+      const minPpm = MIN_CAR_DRAW_PX / CAR_LENGTH_M; // 차 길이가 최소 크기가 되는 배율
+      const drawPpm = Math.max(ppm, minPpm);         // 그림에만 쓰는 배율
+
+      const w = CAR_LENGTH_M * drawPpm;
+      const h = CAR_WIDTH_M * drawPpm;
+      // 실제 차의 가운데를 기준으로 그려서, 키워도 위치가 어긋나지 않게
+      const centerX = toScreenX(car.xM + CAR_LENGTH_M / 2, camLeft);
+      const centerY = road.y + road.height / 2;
+      const x = centerX - w / 2;
+      const y = centerY - h / 2;
+
+      // 차체
+      ctx.fillStyle = "#e33";
+      ctx.fillRect(x, y, w, h);
+      // 앞유리 (오른쪽이 앞)
+      ctx.fillStyle = "#9cf";
+      ctx.fillRect(x + w * 0.7, y + h * 0.15, w * 0.17, h * 0.7);
+
+      return ppm < minPpm;
+    }
+
+    // 아래쪽 안내: 줌 정보, 차 그림 확대 안내
+    function drawZoomInfo(carEnlarged) {
+      ctx.fillStyle = "#000";
+      ctx.font = "15px sans-serif";
+
+      let zoomText = "화면 폭 " + Math.round(viewWidthM) + " m";
+      if (viewWidthM >= maxViewM) zoomText += " (도로 전체)";
+      ctx.textAlign = "right";
+      ctx.fillText(zoomText, canvas.width - 15, canvas.height - 12);
+
+      if (carEnlarged) {
+        ctx.textAlign = "left";
+        ctx.fillText("※ 표시 크기 확대됨 (차가 너무 작아 그림만 키움, 계산은 실제 크기)", 15, canvas.height - 12);
+      }
+    }
+
+    // 현재 속도, 목표 속도 글자 그리기
+    function drawSpeed() {
+      const currentKmh = Math.round(msToKmh(car.speedMs));
+      let currentText = "현재 속도: " + currentKmh + " km/h";
+      if (!running) currentText += " (일시정지)";
+
+      ctx.fillStyle = "#000";
+      ctx.font = "bold 22px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(currentText, 15, 35);
+      ctx.fillText("목표 속도: " + car.targetSpeedKmh + " km/h", 15, 65);
+
+      // 오른쪽 위: 적용 중인 값과 현재 가속도
+      ctx.textAlign = "right";
+      ctx.font = "18px sans-serif";
+      ctx.fillText("적용 중 | 가속도 " + ACCELERATION + " · 감속도 " + DECELERATION +
+                   " · 브레이크 " + BRAKE_DECELERATION + " m/s²", canvas.width - 15, 33);
+      ctx.font = "bold 20px sans-serif";
+      ctx.fillText("현재 가속도: " + formatAccel(car.accelMs2) + " m/s²", canvas.width - 15, 63);
+    }
+
+    // 가속도 숫자에 +/− 붙이기 (아주 작은 값은 0으로)
+    function formatAccel(a) {
+      if (Math.abs(a) < 0.05) return "0";
+      const text = Math.abs(a).toFixed(1);
+      return a > 0 ? "+" + text : "−" + text;
+    }
+
+    // 현재 속도를 목표 속도 쪽으로 조금씩 바꾸기 (dt = 지난 시간, 초)
+    function updateSpeed(dt) {
+      if (braking || brakeLatched) {
+        // 브레이크(둘 중 하나라도 켜짐): 목표와 상관없이 크게 줄이고, 0 아래로는 안 내려감
+        // 0이 되어도 켜져 있으면 계속 0에 머묾
+        car.speedMs = Math.max(0, car.speedMs - BRAKE_DECELERATION * dt);
+        return;
+      }
+
+      const targetMs = kmhToMs(car.targetSpeedKmh);
+      if (car.speedMs < targetMs) {
+        // 가속: 목표를 넘지 않게
+        car.speedMs = Math.min(targetMs, car.speedMs + ACCELERATION * dt);
+      } else if (car.speedMs > targetMs) {
+        // 감속: 목표 아래로 내려가지 않게
+        car.speedMs = Math.max(targetMs, car.speedMs - DECELERATION * dt);
+      }
+    }
+
+    // 화면 전체 다시 그리기
+    function draw() {
+      const camLeft = cameraLeftM();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawRoad(camLeft);
+      drawTicks(camLeft);
+      const carEnlarged = drawCar(camLeft);
+      drawSpeed();          // 글씨는 줌과 상관없이 같은 크기(픽셀)로 그림
+      drawZoomInfo(carEnlarged);
+      showBrakeStats();
+    }
+
+    // 브레이크가 켜졌는지/꺼졌는지 확인해서, 바뀌는 순간에 측정을 시작하거나 취소
+    // (브레이크 버튼 두 개 중 무엇이 바뀌든 이 함수를 부름)
+    function checkBrakeChange() {
+      const active = braking || brakeLatched;
+      if (active && !brakeStats.wasActive) {
+        // 꺼짐 → 켜짐: 새로 측정 시작
+        brakeStats.startKmh = msToKmh(car.speedMs);
+        brakeStats.segmentM = 0;
+        brakeStats.stopM = 0;
+        brakeStats.status = car.speedMs === 0 ? "이미 정지" : "측정 중";
+      } else if (!active && brakeStats.wasActive) {
+        // 켜짐 → 꺼짐: 구간 거리는 그대로 고정, 정지 전에 뗐으면 취소
+        if (brakeStats.status === "측정 중") brakeStats.status = "중간에 뗌";
+      }
+      brakeStats.wasActive = active;
+      showBrakeStats();
+    }
+
+    // 프레임마다 달린 거리를 더하기 (달리는 중에만 불림 → 일시정지 중엔 안 늘어남)
+    function addBrakeDistance(stepM) {
+      if (!(braking || brakeLatched)) return;
+      brakeStats.segmentM += stepM;
+      if (brakeStats.status === "측정 중") {
+        brakeStats.stopM += stepM;
+        if (car.speedMs === 0) brakeStats.status = "정지 완료";
+      }
+    }
+
+    // 제동거리 칸에 숫자 보여주기
+    function showBrakeStats() {
+      if (brakeStats.startKmh === null) return; // 아직 한 번도 안 밟음 → "-" 그대로
+      document.getElementById("statStartSpeed").textContent = Math.round(brakeStats.startKmh) + " km/h";
+      document.getElementById("statSegment").textContent = brakeStats.segmentM.toFixed(1) + " m";
+      document.getElementById("statStop").textContent =
+        brakeStats.status === "중간에 뗌" ? "-" : brakeStats.stopM.toFixed(1) + " m";
+      document.getElementById("statStopStatus").textContent = brakeStats.status;
+    }
+
+    // 매 프레임마다 실행되는 함수
+    function loop(time) {
+      if (!running) return;
+
+      if (lastTime === null) lastTime = time;
+      // 지난 프레임 이후 흐른 시간(초). 너무 길면 MAX_DT로 자름
+      const dt = Math.min((time - lastTime) / 1000, MAX_DT);
+      lastTime = time;
+
+      // 속도를 먼저 바꾸고, 그 속도로 차를 오른쪽으로 이동
+      const speedBefore = car.speedMs;
+      updateSpeed(dt);
+      if (dt > 0) car.accelMs2 = (car.speedMs - speedBefore) / dt; // 실제 속도 변화로 현재 가속도 계산
+
+      // 이번 프레임에 달린 거리(m) = 이전 속도와 새 속도의 평균 × 시간
+      const stepM = (speedBefore + car.speedMs) / 2 * dt;
+      car.xM += stepM;
+      addBrakeDistance(stepM);
+
+      // 도로 오른쪽 끝을 완전히 지나가면 다시 왼쪽 밖에서 시작
+      if (car.xM > ROAD_LENGTH_M) {
+        car.xM = -CAR_LENGTH_M;
+      }
+
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    // 버튼을 누르면 시작/정지 전환
+    button.addEventListener("click", function () {
+      running = !running;
+      if (running) {
+        button.textContent = "일시정지";
+        lastTime = null;
+        requestAnimationFrame(loop);
+      } else {
+        button.textContent = "시작";
+        car.accelMs2 = 0; // 일시정지 중에는 시간이 멈추니 가속도 0
+        draw(); // 일시정지 표시를 다시 그리기
+      }
+    });
+
+    // 브레이크: 누르는 동안만 braking = true
+    function brakeOn(event) {
+      event.preventDefault();
+      braking = true;
+      brakeButton.classList.add("pressed");
+      checkBrakeChange();
+    }
+    function brakeOff() {
+      braking = false;
+      brakeButton.classList.remove("pressed");
+      checkBrakeChange();
+    }
+    brakeButton.addEventListener("pointerdown", brakeOn);
+    brakeButton.addEventListener("pointerup", brakeOff);
+    brakeButton.addEventListener("pointerleave", brakeOff);  // 누른 채 버튼 밖으로 나가면 뗀 것으로
+    brakeButton.addEventListener("pointercancel", brakeOff);
+    window.addEventListener("blur", brakeOff);               // 다른 창으로 가면 뗀 것으로
+
+    // 브레이크 작동: 한 번 누르면 켜지고, 다시 누르면 꺼짐
+    // (일시정지 중에 눌러도 상태만 바뀌고, 다시 시작하면 그 상태로 계산됨)
+    const brakeLatchButton = document.getElementById("brakeLatchBtn");
+    brakeLatchButton.addEventListener("click", function () {
+      brakeLatched = !brakeLatched;
+      if (brakeLatched) {
+        brakeLatchButton.textContent = "브레이크 해제";
+        brakeLatchButton.classList.add("latched");
+      } else {
+        brakeLatchButton.textContent = "브레이크 작동";
+        brakeLatchButton.classList.remove("latched");
+      }
+      checkBrakeChange();
+    });
+
+    // 입력칸 글자를 검사해서 숫자로 바꾸기. 잘못되면 null
+    // (글자, 빈칸, 음수 "-"는 아래 모양 검사에서 걸림)
+    function parseInput(text, min, max, integerOnly) {
+      text = text.trim();
+      const pattern = integerOnly ? /^\d+$/ : /^\d+(\.\d+)?$/;
+      if (!pattern.test(text)) return null;
+      const value = Number(text);
+      if (value < min || value > max) return null;
+      return value;
+    }
+
+    // 입력칸 + 확인 버튼 + Enter 키를 한 번에 연결하기
+    // getValue: 지금 값 알려주기, setValue: 새 값 적용하기
+    function setupInput(inputId, buttonId, errorId, min, max, integerOnly, getValue, setValue) {
+      const input = document.getElementById(inputId);
+      const okButton = document.getElementById(buttonId);
+      const error = document.getElementById(errorId);
+      const kind = integerOnly ? "정수" : "숫자";
+      let messageTimer = null;
+
+      input.value = getValue(); // 처음 값 보여주기
+
+      // 안내 문구 바꾸기. type: "" = 빨강(오류), "pending" = 노랑, "info" = 회색
+      function showMessage(text, type) {
+        clearTimeout(messageTimer);
+        error.textContent = text;
+        error.className = "error" + (type ? " " + type : "");
+      }
+
+      // 입력칸 글자가 적용 중인 값과 다른지 (= 아직 확인 안 누름)
+      function isPending() {
+        return input.value !== String(getValue());
+      }
+
+      function confirm() {
+        const value = parseInput(input.value, min, max, integerOnly);
+        if (value === null) {
+          showMessage(min + "~" + max + " 사이의 " + kind + "로 입력하세요 (지금 값 " + getValue() + " 유지)", "");
+          return;
+        }
+        showMessage("", "");
+        input.value = value; // "05" 같은 입력을 "5"로 정리
+        input.classList.remove("pending");
+        setValue(value);
+        draw();
+      }
+
+      // 글자를 쓰는 중: 적용 중인 값과 다르면 노란 테두리 + 안내
+      input.addEventListener("input", function () {
+        if (isPending()) {
+          input.classList.add("pending");
+          showMessage("확인을 누르세요 (아직 적용 안 됨, 지금 값 " + getValue() + ")", "pending");
+        } else {
+          input.classList.remove("pending");
+          showMessage("", "");
+        }
+      });
+
+      // 확인 없이 입력칸을 벗어나면 원래 값으로 되돌리기
+      input.addEventListener("blur", function (event) {
+        if (event.relatedTarget === okButton) return; // 확인 버튼으로 가는 중이면 되돌리지 않음
+        if (!isPending()) return;
+        input.value = getValue();
+        input.classList.remove("pending");
+        showMessage("적용되지 않았습니다", "info");
+        messageTimer = setTimeout(function () { showMessage("", ""); }, 2000);
+      });
+
+      // 확인 버튼을 눌러도 입력칸에서 포커스가 빠지지 않게 (위의 되돌리기보다 확인이 먼저 되도록)
+      okButton.addEventListener("mousedown", function (event) {
+        event.preventDefault();
+      });
+      okButton.addEventListener("click", confirm);
+      input.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") confirm();
+      });
+    }
+
+    // 목표 속도: 입력칸에서 확인하면 슬라이더도 같이 움직임
+    setupInput("speedInput", "speedOk", "speedError", SPEED_MIN, SPEED_MAX, true,
+      function () { return car.targetSpeedKmh; },
+      function (v) { car.targetSpeedKmh = v; slider.value = v; });
+
+    // 가속도, 감속도, 브레이크 감속도
+    setupInput("accelInput", "accelOk", "accelError", ACCEL_MIN, ACCEL_MAX, false,
+      function () { return ACCELERATION; },
+      function (v) { ACCELERATION = v; });
+    setupInput("decelInput", "decelOk", "decelError", ACCEL_MIN, ACCEL_MAX, false,
+      function () { return DECELERATION; },
+      function (v) { DECELERATION = v; });
+    setupInput("brakeInput", "brakeOk", "brakeError", ACCEL_MIN, ACCEL_MAX, false,
+      function () { return BRAKE_DECELERATION; },
+      function (v) { BRAKE_DECELERATION = v; });
+
+    // 슬라이더를 움직이면 목표 속도와 입력칸 숫자를 바꾸기 (현재 속도는 서서히 따라감)
+    slider.value = car.targetSpeedKmh;
+    slider.addEventListener("input", function () {
+      car.targetSpeedKmh = Number(slider.value);
+      speedInput.value = slider.value;
+      speedInput.classList.remove("pending");
+      speedError.textContent = "";
+      speedError.className = "error";
+      draw(); // 정지 중에도 화면을 새로 그리기
+    });
+
+    // 줌: 화면 폭에 factor를 곱함 (1보다 크면 축소, 작으면 확대)
+    function zoom(factor) {
+      viewWidthM = Math.max(minViewM, Math.min(maxViewM, viewWidthM * factor));
+      draw(); // 일시정지 중에도 바로 다시 그리기
+    }
+    document.getElementById("zoomInBtn").addEventListener("click", function () {
+      zoom(1 / ZOOM_STEP);
+    });
+    document.getElementById("zoomOutBtn").addEventListener("click", function () {
+      zoom(ZOOM_STEP);
+    });
+    // 마우스 휠: 한 칸마다 ZOOM_STEP배 (아래로 굴리면 축소). 페이지가 같이 스크롤되지 않게 막음
+    canvas.addEventListener("wheel", function (event) {
+      if (event.deltaY === 0) return;
+      event.preventDefault();
+      zoom(event.deltaY > 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
+    }, { passive: false });
+
+    // 처음 열었을 때 한 번 그려 두기
+    draw();
+  </script>
+</body>
+</html>
