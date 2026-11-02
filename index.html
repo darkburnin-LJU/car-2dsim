@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <!-- 휴대폰에서 화면 폭을 그대로 쓰게 하기 -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>2D 자동차 시뮬레이션 - 6단계</title>
+  <title>2D 자동차 시뮬레이션 - 9-3단계</title>
   <style>
     body {
       margin: 0;
@@ -22,6 +22,48 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
+    }
+    /* 화면 3개(시작/설정/시뮬레이션) 중 지금 안 보이는 화면 */
+    .hidden {
+      display: none !important;
+    }
+    /* 시작 화면: 큰 버튼 두 개를 가운데에 세로로 */
+    .start-buttons {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      margin-top: 30px;
+    }
+    .start-buttons button {
+      width: 260px;
+      max-width: 100%;
+      padding: 20px;
+      font-size: 26px;
+    }
+    /* 설정 화면 제목 */
+    .screen-title {
+      margin: 0;
+      font-size: 24px;
+    }
+    /* 설정 화면 아래쪽 버튼 줄: 기본값으로 되돌리기 / 돌아가기 */
+    .settings-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    /* "기본값으로 되돌렸습니다" 안내 (비어 있으면 안 보임) */
+    .notice {
+      color: #555;
+      font-size: 16px;
+    }
+    .notice:empty {
+      display: none;
+    }
+    /* 그림판 위쪽 왼쪽 [처음 화면으로] 버튼 줄 */
+    .nav-row {
+      display: flex;
+      justify-content: flex-start;
     }
     /* 지도 줄: 그림판 + 오른쪽 확대/축소 버튼 */
     .map-row {
@@ -121,13 +163,143 @@
       font-size: 14px;
       color: #a06800;
     }
+    /* 차에 걸리는 힘 칸: 제동거리 칸과 같은 모양, 색만 파란색 */
+    .force-panel {
+      border-color: #2a7de1;
+    }
+    .force-panel h2 {
+      color: #2a7de1;
+    }
+    .force-panel .stat-status {
+      color: #555;
+    }
+    /* 장애물 칸: 제동거리 칸과 같은 모양, 색만 회색 */
+    .obstacle-panel {
+      border-color: #555;
+    }
+    .obstacle-panel h2 {
+      color: #555;
+    }
+    .obstacle-distance {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+    .obstacle-distance input {
+      width: 70px;
+      font-size: 18px;
+      padding: 4px;
+    }
+    /* 장애물 버튼 4개 한 줄 (휴대폰에서는 2칸×2줄) */
+    .obstacle-buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .obstacle-buttons button {
+      padding: 8px 6px;
+      font-size: 16px;
+    }
+    /* 장애물 칸 안내: 회색 = 개수, 빨강 = 오류, 빨강 굵게 = 충돌 */
+    .ob-message {
+      display: block;
+      margin-top: 8px;
+      font-size: 15px;
+      color: #555;
+    }
+    .ob-message:empty {
+      display: none;
+    }
+    .ob-message.error {
+      color: #c00;
+    }
+    .ob-message.crash {
+      color: #c00;
+      font-weight: bold;
+      font-size: 17px;
+    }
+    /* 센서 칸: 다른 칸과 같은 모양, 색만 초록 */
+    .sensor-panel {
+      border-color: #2e7d32;
+    }
+    .sensor-panel h2 {
+      color: #2e7d32;
+    }
+    #aebBtn {
+      font-size: 16px;
+      padding: 8px 14px;
+    }
+    /* 자동 정지 켜짐: 초록 바탕 흰 글씨 */
+    #aebBtn.on {
+      background: #2e7d32;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+    }
+    .sensor-line {
+      margin-top: 8px;
+      font-size: 16px;
+    }
+    .sensor-line:empty {
+      display: none;
+    }
+    /* 체크박스 줄: 좁으면 다음 줄로 */
+    .sensor-checks label {
+      display: inline-block;
+      margin-right: 10px;
+      white-space: nowrap;
+    }
+    .sensor-checks input {
+      margin-right: 3px;
+    }
+    /* 자동 제동 중 (주황) */
+    #sensorState.warn {
+      color: #e07000;
+      font-weight: bold;
+    }
+    .sensor-table-wrap {
+      margin-top: 8px;
+      overflow-x: auto;  /* 표가 넓으면 표만 가로 스크롤 */
+    }
+    .sensor-table {
+      border-collapse: collapse;
+      font-size: 15px;
+      white-space: nowrap;
+    }
+    .sensor-table th,
+    .sensor-table td {
+      border: 1px solid #ccc;
+      padding: 3px 8px;
+      text-align: right;
+    }
+    .sensor-table th {
+      background: #f4f4f4;
+    }
+    /* 마찰 한계로 잘렸을 때 (주황) */
+    .stat-value.warn {
+      color: #e07000;
+    }
     .settings {
       font-size: 18px;
+    }
+    /* 설정 화면의 묶음 제목 (주행 / 차량·노면) */
+    .group-title {
+      margin: 16px 0 4px;
+      font-size: 19px;
+      color: #333;
+    }
+    /* 묶음 아래 회색 작은 안내 */
+    .hint {
+      color: #777;
+      font-size: 14px;
+      margin: 0 0 6px;
     }
     /* 설정 한 줄: 왼쪽 이름 / 오른쪽 입력칸들, 안내 문구는 입력칸 아래 */
     .setting-row {
       display: grid;
-      grid-template-columns: 160px 1fr;
+      grid-template-columns: 190px 1fr;
       align-items: center;
       row-gap: 4px;
       margin: 10px 0;
@@ -197,6 +369,10 @@
       .brake-stats {
         grid-template-columns: 1fr;
       }
+      /* 장애물 버튼 2칸×2줄 */
+      .obstacle-buttons {
+        grid-template-columns: repeat(2, 1fr);
+      }
       /* 이름 아래에 입력칸이 오게 */
       .setting-row {
         grid-template-columns: 1fr;
@@ -211,57 +387,24 @@
   </style>
 </head>
 <body>
-  <h1>2D 자동차 시뮬레이션 (6단계)</h1>
+  <h1>2D 자동차 시뮬레이션 (9-3단계)</h1>
 
-  <div class="page">
-    <!-- 1. 지도(그림판) + 오른쪽 확대/축소 버튼 -->
-    <div class="map-row">
-      <canvas id="sim" width="800" height="300"></canvas>
-      <div class="zoom-buttons">
-        <button id="zoomInBtn">확대 +</button>
-        <button id="zoomOutBtn">축소 −</button>
-      </div>
+  <!-- ===== 화면 1: 시작 화면 (처음 열면 이것만 보임) ===== -->
+  <div class="page" id="startScreen">
+    <div class="start-buttons">
+      <button id="goSimBtn">실행</button>
+      <button id="goSettingsBtn">설정</button>
     </div>
+  </div>
 
-    <!-- 2. 버튼 3개 한 줄 -->
-    <div class="control-row">
-      <button id="toggleBtn">시작</button>
-      <button id="brakeBtn">브레이크 (누르고 있기)</button>
-      <button id="brakeLatchBtn">브레이크 작동</button>
-    </div>
+  <!-- ===== 화면 2: 설정 화면 ===== -->
+  <div class="page hidden" id="settingsScreen">
+    <h2 class="screen-title">설정</h2>
 
-    <!-- 3. 제동거리 -->
-    <div class="brake-panel">
-      <h2>제동거리</h2>
-      <div class="brake-stats">
-        <div>
-          <span class="stat-label">브레이크 시작 속도</span>
-          <span class="stat-value" id="statStartSpeed">-</span>
-        </div>
-        <div>
-          <span class="stat-label">브레이크 구간 거리</span>
-          <span class="stat-value" id="statSegment">-</span>
-        </div>
-        <div>
-          <span class="stat-label">정지까지 제동거리</span>
-          <span class="stat-value" id="statStop">-</span>
-          <span class="stat-status" id="statStopStatus"></span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 4. 설정: 입력칸 + 단위 + 확인 버튼, 아래에 안내 문구 -->
+    <!-- 입력칸 + 단위 + 확인 버튼, 아래에 안내 문구 -->
     <div class="settings">
-      <div class="setting-row">
-        <label for="speedSlider">목표 속도</label>
-        <div class="setting-controls">
-          <input type="range" id="speedSlider" min="0" max="300" step="1">
-          <input type="text" id="speedInput" inputmode="numeric">
-          <span class="unit">km/h</span>
-          <button id="speedOk">확인</button>
-        </div>
-        <span class="error" id="speedError"></span>
-      </div>
+      <!-- 묶음 1: 주행 -->
+      <h3 class="group-title">주행</h3>
       <div class="setting-row">
         <label for="accelInput">가속도</label>
         <div class="setting-controls">
@@ -289,26 +432,328 @@
         </div>
         <span class="error" id="brakeError"></span>
       </div>
+      <p class="hint">브레이크·가속도가 마찰 한계(μ × 9.81)보다 크면 마찰 한계까지만 적용됩니다</p>
+
+      <!-- 묶음 2: 차량·노면 (단위가 없는 값은 단위 칸을 비워 둠) -->
+      <h3 class="group-title">차량·노면</h3>
+      <div class="setting-row">
+        <label for="massInput">차 질량</label>
+        <div class="setting-controls">
+          <input type="text" id="massInput" inputmode="numeric">
+          <span class="unit">kg</span>
+          <button id="massOk">확인</button>
+        </div>
+        <span class="error" id="massError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="cdInput">공기저항계수 (Cd)</label>
+        <div class="setting-controls">
+          <input type="text" id="cdInput" inputmode="decimal">
+          <span class="unit"></span>
+          <button id="cdOk">확인</button>
+        </div>
+        <span class="error" id="cdError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="areaInput">정면 면적</label>
+        <div class="setting-controls">
+          <input type="text" id="areaInput" inputmode="decimal">
+          <span class="unit">m²</span>
+          <button id="areaOk">확인</button>
+        </div>
+        <span class="error" id="areaError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="crrInput">구름저항계수 (Crr)</label>
+        <div class="setting-controls">
+          <input type="text" id="crrInput" inputmode="decimal">
+          <span class="unit"></span>
+          <button id="crrOk">확인</button>
+        </div>
+        <span class="error" id="crrError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="muInput">노면 마찰계수 (μ)</label>
+        <div class="setting-controls">
+          <input type="text" id="muInput" inputmode="decimal">
+          <span class="unit"></span>
+          <button id="muOk">확인</button>
+        </div>
+        <span class="error" id="muError"></span>
+      </div>
+
+      <!-- 묶음 3: 센서(레이더) -->
+      <h3 class="group-title">센서(레이더)</h3>
+      <div class="setting-row">
+        <label for="farRangeInput">원거리 감지 거리</label>
+        <div class="setting-controls">
+          <input type="text" id="farRangeInput" inputmode="decimal">
+          <span class="unit">m</span>
+          <button id="farRangeOk">확인</button>
+        </div>
+        <span class="error" id="farRangeError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="farDegInput">원거리 감지 각도(±)</label>
+        <div class="setting-controls">
+          <input type="text" id="farDegInput" inputmode="decimal">
+          <span class="unit">°</span>
+          <button id="farDegOk">확인</button>
+        </div>
+        <span class="error" id="farDegError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="nearRangeInput">근거리 감지 거리</label>
+        <div class="setting-controls">
+          <input type="text" id="nearRangeInput" inputmode="decimal">
+          <span class="unit">m</span>
+          <button id="nearRangeOk">확인</button>
+        </div>
+        <span class="error" id="nearRangeError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="nearDegInput">근거리 감지 각도(±)</label>
+        <div class="setting-controls">
+          <input type="text" id="nearDegInput" inputmode="decimal">
+          <span class="unit">°</span>
+          <button id="nearDegOk">확인</button>
+        </div>
+        <span class="error" id="nearDegError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="marginInput">안전 여유</label>
+        <div class="setting-controls">
+          <input type="text" id="marginInput" inputmode="decimal">
+          <span class="unit">m</span>
+          <button id="marginOk">확인</button>
+        </div>
+        <span class="error" id="marginError"></span>
+      </div>
+
+      <!-- 묶음 4: 센서(라이다) -->
+      <h3 class="group-title">센서(라이다)</h3>
+      <div class="setting-row">
+        <label for="lidarRangeInput">감지 거리</label>
+        <div class="setting-controls">
+          <input type="text" id="lidarRangeInput" inputmode="decimal">
+          <span class="unit">m</span>
+          <button id="lidarRangeOk">확인</button>
+        </div>
+        <span class="error" id="lidarRangeError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="lidarResInput">광선 간격</label>
+        <div class="setting-controls">
+          <input type="text" id="lidarResInput" inputmode="decimal">
+          <span class="unit">°</span>
+          <button id="lidarResOk">확인</button>
+        </div>
+        <span class="error" id="lidarResError"></span>
+      </div>
+
+      <!-- 묶음 5: 센서(카메라) -->
+      <h3 class="group-title">센서(카메라)</h3>
+      <div class="setting-row">
+        <label for="camRangeInput">감지 거리</label>
+        <div class="setting-controls">
+          <input type="text" id="camRangeInput" inputmode="decimal">
+          <span class="unit">m</span>
+          <button id="camRangeOk">확인</button>
+        </div>
+        <span class="error" id="camRangeError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="camDegInput">감지 각도(±)</label>
+        <div class="setting-controls">
+          <input type="text" id="camDegInput" inputmode="decimal">
+          <span class="unit">°</span>
+          <button id="camDegOk">확인</button>
+        </div>
+        <span class="error" id="camDegError"></span>
+      </div>
+    </div>
+
+    <div class="settings-buttons">
+      <button id="resetDefaultsBtn">기본값으로 되돌리기</button>
+      <button id="settingsBackBtn">돌아가기</button>
+    </div>
+    <span class="notice" id="resetNotice"></span>
+  </div>
+
+  <!-- ===== 화면 3: 시뮬레이션 화면 ===== -->
+  <div class="page hidden" id="simScreen">
+    <!-- 0. 그림판 위쪽 왼쪽: 처음 화면으로 -->
+    <div class="nav-row">
+      <button id="simHomeBtn">처음 화면으로</button>
+    </div>
+
+    <!-- 1. 지도(그림판) + 오른쪽 확대/축소 버튼 -->
+    <div class="map-row">
+      <canvas id="sim" width="800" height="360"></canvas>
+      <div class="zoom-buttons">
+        <button id="zoomInBtn">확대 +</button>
+        <button id="zoomOutBtn">축소 −</button>
+      </div>
+    </div>
+
+    <!-- 2. 버튼 3개 한 줄 -->
+    <div class="control-row">
+      <button id="toggleBtn">시작</button>
+      <button id="brakeBtn">브레이크 (누르고 있기)</button>
+      <button id="brakeLatchBtn">브레이크 작동</button>
+    </div>
+
+    <!-- 2-2. 장애물 (제동거리 칸과 같은 모양, 회색) -->
+    <div class="brake-panel obstacle-panel">
+      <h2>장애물</h2>
+      <div class="obstacle-distance">
+        <label for="obDistInput">앞쪽 거리</label>
+        <input type="text" id="obDistInput" value="100" inputmode="decimal">
+        <span>m</span>
+      </div>
+      <div class="obstacle-buttons">
+        <button id="obCarBtn">앞차 정지</button>
+        <button id="obPedStandBtn">보행자 서 있음</button>
+        <button id="obPedCrossBtn">보행자 건너옴</button>
+        <button id="obClearBtn">지우기</button>
+      </div>
+      <span class="ob-message" id="obMessage"></span>
+    </div>
+
+    <!-- 3. 제동거리 -->
+    <div class="brake-panel">
+      <h2>제동거리</h2>
+      <div class="brake-stats">
+        <div>
+          <span class="stat-label">브레이크 시작 속도</span>
+          <span class="stat-value" id="statStartSpeed">-</span>
+        </div>
+        <div>
+          <span class="stat-label">브레이크 구간 거리</span>
+          <span class="stat-value" id="statSegment">-</span>
+        </div>
+        <div>
+          <span class="stat-label">정지까지 제동거리</span>
+          <span class="stat-value" id="statStop">-</span>
+          <span class="stat-status" id="statStopStatus"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3-2. 차에 걸리는 힘 (제동거리 칸과 같은 모양, 파란색) -->
+    <div class="brake-panel force-panel">
+      <h2>차에 걸리는 힘</h2>
+      <div class="brake-stats">
+        <div>
+          <span class="stat-label">타이어 힘</span>
+          <span class="stat-value" id="forceTire">-</span>
+          <span class="stat-status" id="forceMode"></span>
+        </div>
+        <div>
+          <span class="stat-label">공기저항</span>
+          <span class="stat-value" id="forceDrag">-</span>
+        </div>
+        <div>
+          <span class="stat-label">구름저항</span>
+          <span class="stat-value" id="forceRolling">-</span>
+        </div>
+        <div>
+          <span class="stat-label">합력</span>
+          <span class="stat-value" id="forceTotal">-</span>
+        </div>
+        <div>
+          <span class="stat-label">마찰 한계</span>
+          <span class="stat-value" id="forceLimit">-</span>
+        </div>
+        <div>
+          <span class="stat-label">상태</span>
+          <span class="stat-value" id="forceState">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3-3. 센서 (다른 칸과 같은 모양, 초록) -->
+    <div class="brake-panel sensor-panel">
+      <h2>센서</h2>
+      <button id="aebBtn">자동 정지: 꺼짐</button>
+      <div class="sensor-line sensor-checks">
+        자동 정지에 쓸 센서:
+        <label><input type="checkbox" id="useRadar" checked>레이더</label>
+        <label><input type="checkbox" id="useLidar" checked>라이다</label>
+        <label><input type="checkbox" id="useCamera" checked>카메라</label>
+      </div>
+      <div class="sensor-line sensor-checks">
+        그림판 표시:
+        <label><input type="checkbox" id="showRadarChk" checked>레이더</label>
+        <label><input type="checkbox" id="showLidarChk" checked>라이다</label>
+        <label><input type="checkbox" id="showCameraChk" checked>카메라</label>
+        <label><input type="checkbox" id="showAllRaysChk">라이다 전체 광선</label>
+      </div>
+      <div class="sensor-line">상태: <span id="sensorState">꺼짐</span></div>
+      <div class="sensor-line" id="sensorTarget">경로 안 감지 물체 없음</div>
+      <!-- 실제 장애물 기준 표 (휴대폰에서 넘치면 표만 가로 스크롤) -->
+      <div class="sensor-table-wrap">
+        <table class="sensor-table">
+          <thead>
+            <tr><th>번호</th><th>실제 종류</th><th>레이더<br>접근 속도 m/s</th><th>라이다<br>광선 수</th>
+                <th>카메라<br>판별 종류</th><th>남은 거리 m</th><th>경로</th></tr>
+          </thead>
+          <tbody id="sensorRows"></tbody>
+        </table>
+      </div>
+      <div class="sensor-line" id="sensorEmpty">장애물 없음</div>
+    </div>
+
+    <!-- 4. 목표 속도: 슬라이더 + 입력칸 + 단위 + 확인 버튼, 아래에 안내 문구 -->
+    <!-- (가속도·감속도·브레이크 감속도는 설정 화면으로 옮김) -->
+    <div class="settings">
+      <div class="setting-row">
+        <label for="speedSlider">목표 속도</label>
+        <div class="setting-controls">
+          <input type="range" id="speedSlider" min="0" max="300" step="1">
+          <input type="text" id="speedInput" inputmode="numeric">
+          <span class="unit">km/h</span>
+          <button id="speedOk">확인</button>
+        </div>
+        <span class="error" id="speedError"></span>
+      </div>
     </div>
   </div>
 
+  <script src="sim-core.js"></script>
   <script>
-    // ===== 쉽게 바꿀 수 있는 값 (처음 열었을 때의 기본값) =====
-    // 가속도·감속도 단위: m/s² (1초마다 속도가 몇 m/s 바뀌는지)
-    // 화면의 입력칸으로도 바꿀 수 있어서 const 대신 let을 씀
-    let ACCELERATION = 2.5;  // 가속도: 목표 속도보다 느릴 때 (0→100km/h 약 11초)
-    let DECELERATION = 3.0;  // 감속도: 목표 속도보다 빠를 때 (가볍게 브레이크 밟는 정도)
-    let BRAKE_DECELERATION = 7.0; // 브레이크 감속도: 브레이크 버튼을 누르는 동안 (급제동 정도)
-    const START_TARGET_KMH = 60;  // 처음 목표 속도(km/h)
+    // ===== 계산 코드는 sim-core.js에 있음 (화면과 상관없는 상수·설정값·물리·센서·자동 정지) =====
+    // sim = 시뮬레이션 상자 하나. 바뀌는 값(설정값·브레이크 상태·충돌 등)은 sim.ACCELERATION처럼 sim을 통해 읽고 씀
+    const sim = createSim();
+    // 바뀌지 않는 상수·객체·함수는 이름 그대로 꺼내 씀 (같은 것을 가리키므로 화면과 계산이 끊기지 않음)
+    const {
+      DEFAULT_ACCELERATION, DEFAULT_DECELERATION, DEFAULT_BRAKE_DECELERATION, DEFAULT_MASS_KG,
+      DEFAULT_DRAG_CD, DEFAULT_FRONTAL_AREA_M2, DEFAULT_ROLLING_CRR, DEFAULT_ROAD_MU,
+      DEFAULT_RADAR_FAR_RANGE_M, DEFAULT_RADAR_FAR_HALF_DEG, DEFAULT_RADAR_NEAR_RANGE_M,
+      DEFAULT_RADAR_NEAR_HALF_DEG, DEFAULT_SAFETY_MARGIN_M, DEFAULT_LIDAR_RANGE_M, DEFAULT_LIDAR_RES_DEG,
+      DEFAULT_CAMERA_RANGE_M, DEFAULT_CAMERA_HALF_DEG, ROAD_LENGTH_M, ROAD_WIDTH_M, MY_LANE_Y_M, CAR_LENGTH_M,
+      CAR_WIDTH_M, CAR_HEIGHT_M, PED_SIZE_M, PED_HEIGHT_M, PED_WALK_SPEED_MS, MAX_OBSTACLES, car, obstacles,
+      brakeStats, radar, lidar, camera, msToKmh, computeForces, pathInfo, rayHitRect, scanLidar, detectAll,
+      findDetection, detectedByChecked, nearestCandidate, requiredStopM
+    } = sim;
 
     // 입력칸 허용 범위
     const SPEED_MIN = 0, SPEED_MAX = 300;   // km/h (정수만)
     const ACCEL_MIN = 0, ACCEL_MAX = 10;    // m/s² (1g = 9.8 m/s², 타이어가 버틸 수 있는 한계 정도)
+    const MASS_MIN = 500, MASS_MAX = 5000;  // kg (정수만)
+    const CD_MIN = 0, CD_MAX = 2;
+    const AREA_MIN = 0, AREA_MAX = 10;      // m²
+    const CRR_MIN = 0, CRR_MAX = 0.1;
+    const MU_MIN = 0, MU_MAX = 1.5;
+    const RANGE_MIN = 10, RANGE_MAX = 500;  // 레이더 감지 거리(m)
+    const DEG_MIN = 1, DEG_MAX = 90;        // 레이더 감지 각도(±°)
+    const MARGIN_MIN = 0, MARGIN_MAX = 50;  // 안전 여유(m)
+    const LIDAR_RANGE_MIN = 10, LIDAR_RANGE_MAX = 300;  // 라이다 감지 거리(m)
+    const LIDAR_RES_MIN = 0.1, LIDAR_RES_MAX = 2;       // 라이다 광선 간격(°)
+    const CAM_RANGE_MIN = 10, CAM_RANGE_MAX = 500;      // 카메라 감지 거리(m)
 
-    // 도로·자동차·화면
-    const ROAD_LENGTH_M = 200;   // 도로 전체 길이(m). 1000으로 바꾸면 1 km 도로
-    const CAR_LENGTH_M = 4.5;    // 자동차 길이(m)
-    const CAR_WIDTH_M = 1.8;     // 자동차 폭(m)
+    // 화면
+    const MIN_PED_DRAW_PX = 6;   // 보행자 그림 최소 크기(픽셀)
     const START_VIEW_M = 50;     // 처음 화면에 보이는 도로 길이(m)
     const MIN_VIEW_M = 25;       // 최대로 확대했을 때 화면에 보이는 길이(m)
     const ZOOM_STEP = 1.2;       // 휠 한 칸 / 버튼 한 번에 화면 폭이 몇 배 바뀌는지
@@ -326,41 +771,12 @@
     const speedInput = document.getElementById("speedInput");
     const speedError = document.getElementById("speedError");
 
-    // km/h ↔ m/s 바꾸기 (1 m/s = 3.6 km/h)
-    function kmhToMs(kmh) {
-      return kmh / 3.6;
-    }
-    function msToKmh(ms) {
-      return ms * 3.6;
-    }
-
-    // 2. 도로 설정 (화면에서 위아래 위치·두께, 픽셀)
-    const road = {
-      y: 100,      // 도로 윗변 위치
-      height: 100  // 도로 폭
-    };
-
-    // 3. 자동차 설정 (위치는 미터 단위)
-    const car = {
-      xM: 0,             // 차 뒤쪽 끝의 위치(m), 도로 왼쪽 끝 = 0
-      speedMs: 0,        // 현재 속도(m/s), 처음에는 멈춰 있음
-      targetSpeedKmh: START_TARGET_KMH, // 목표 속도(km/h), 슬라이더나 입력칸으로 바뀜
-      accelMs2: 0        // 지금 이 순간 실제로 받는 가속도(m/s²), +가속 / −감속
-    };
-
-    // 4. 달리는 중인지, 브레이크를 누르고 있는지 / 작동시켜 두었는지 기억하는 변수
+    // 달리는 중인지 (시간은 화면 쪽에서 흐름)
     let running = false;
-    let braking = false;       // "브레이크 (누르고 있기)"를 누르는 동안 true
-    let brakeLatched = false;  // "브레이크 작동"을 켜 두면 true (다시 누를 때까지 유지)
+    // 그림판에 센서 그림 보이기 (기본 셋 다). 감지 계산은 이것과 상관없이 계속 함
+    let showRadar = true, showLidar = true, showCamera = true;
+    let showAllLidarRays = false; // 라이다 전체 광선 보기 (기본 꺼짐, "라이다" 표시가 꺼져 있으면 안 그림)
 
-    // 제동거리 기록
-    const brakeStats = {
-      wasActive: false,   // 직전에 브레이크가 켜져 있었는지 (켜짐/꺼짐 바뀌는 순간을 찾으려고)
-      startKmh: null,     // 브레이크 시작 속도(km/h), 아직 안 밟았으면 null
-      segmentM: 0,        // 브레이크 구간 거리(m): 켜져 있는 동안 달린 거리
-      stopM: 0,           // 정지까지 제동거리(m)
-      status: ""          // "측정 중" / "정지 완료" / "중간에 뗌" / "이미 정지"
-    };
     let lastTime = null;
 
     // 5. 줌: 화면 폭에 보이는 도로 길이(m). 최대 축소 = 도로 전체
@@ -385,20 +801,42 @@
       return (m - camLeft) * pixelsPerMeter();
     }
 
+    // 옆 방향 위치 y(m) → 화면 y(픽셀). 가로(x)와 같은 배율을 씀
+    function toScreenY(yM) {
+      return canvas.height / 2 + yM * pixelsPerMeter();
+    }
+
     // 도로 그리기
     function drawRoad(camLeft) {
+      const top = toScreenY(-ROAD_WIDTH_M / 2);    // 도로 위 가장자리
+      const bottom = toScreenY(ROAD_WIDTH_M / 2);  // 도로 아래 가장자리
       ctx.fillStyle = "#555";
-      ctx.fillRect(0, road.y, canvas.width, road.height);
+      ctx.fillRect(0, top, canvas.width, bottom - top);
 
-      // 가운데 흰 점선: 실제 3m 선 + 5m 빈칸, 카메라가 움직이면 같이 지나감
+      // 차선 굵기: 실제 0.15m(예시값)를 배율로 바꾼 값, 최소 1px 최대 4px
       const ppm = pixelsPerMeter();
+      const lineW = Math.max(1, Math.min(4, 0.15 * ppm));
+
+      // 위·아래 가장자리 흰 실선
       ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 4;
+      ctx.lineWidth = lineW;
+      ctx.beginPath();
+      ctx.moveTo(0, top);
+      ctx.lineTo(canvas.width, top);
+      ctx.moveTo(0, bottom);
+      ctx.lineTo(canvas.width, bottom);
+      ctx.stroke();
+
+      // 도로가 화면에서 30px보다 얇으면 가운데 점선은 안 그림 (줄무늬처럼 보이지 않게)
+      if (bottom - top < 30) return;
+
+      // 가운데 흰 점선(y = 0): 실제 3m 선 + 5m 빈칸, 카메라가 움직이면 같이 지나감
+      ctx.lineWidth = lineW;
       ctx.setLineDash([3 * ppm, 5 * ppm]);
       ctx.lineDashOffset = camLeft * ppm;
       ctx.beginPath();
-      ctx.moveTo(0, road.y + road.height / 2);
-      ctx.lineTo(canvas.width, road.y + road.height / 2);
+      ctx.moveTo(0, toScreenY(0));
+      ctx.lineTo(canvas.width, toScreenY(0));
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.lineDashOffset = 0;
@@ -423,7 +861,7 @@
     // 도로 아래쪽에 눈금(짧은 선 + 거리 숫자) 그리기
     function drawTicks(camLeft) {
       const step = chooseTickStepM();
-      const y = road.y + road.height; // 도로 아랫변
+      const y = toScreenY(ROAD_WIDTH_M / 2); // 도로 아래 가장자리
       ctx.strokeStyle = "#000";
       ctx.fillStyle = "#000";
       ctx.lineWidth = 2;
@@ -454,7 +892,7 @@
       const h = CAR_WIDTH_M * drawPpm;
       // 실제 차의 가운데를 기준으로 그려서, 키워도 위치가 어긋나지 않게
       const centerX = toScreenX(car.xM + CAR_LENGTH_M / 2, camLeft);
-      const centerY = road.y + road.height / 2;
+      const centerY = toScreenY(MY_LANE_Y_M); // 아래쪽 차로 가운데
       const x = centerX - w / 2;
       const y = centerY - h / 2;
 
@@ -466,6 +904,84 @@
       ctx.fillRect(x + w * 0.7, y + h * 0.15, w * 0.17, h * 0.7);
 
       return ppm < minPpm;
+    }
+
+    // 장애물 테두리 색: 충돌 빨강 > 감지+경로 안 주황 > 감지 노랑 > 없음(null)
+    // "감지" = 자동 정지에 체크된 센서 중 하나라도 감지
+    function borderColor(ob, det) {
+      if (ob.hit) return "#e00";
+      if (!detectedByChecked(det, ob)) return null;
+      return pathInfo(ob).inPath ? "#ff7a00" : "#ffd400";
+    }
+
+    // 장애물 그리기. 너무 작으면 그림만 최소 크기로 키움 → 하나라도 키웠으면 true
+    function drawObstacles(camLeft, det) {
+      const ppm = pixelsPerMeter();
+      let enlarged = false;
+
+      for (const ob of obstacles) {
+        const centerX = toScreenX(ob.xM, camLeft);
+        const centerY = toScreenY(ob.yM);
+        const border = borderColor(ob, det);
+
+        if (ob.kind === "car") {
+          // 앞차: 회색 직사각형 + 앞유리 (내 차와 같은 방식, 오른쪽이 앞)
+          const minPpm = MIN_CAR_DRAW_PX / ob.lengthM;
+          const drawPpm = Math.max(ppm, minPpm);
+          if (ppm < minPpm) enlarged = true;
+          const w = ob.lengthM * drawPpm;
+          const h = ob.widthM * drawPpm;
+          const x = centerX - w / 2;
+          const y = centerY - h / 2;
+          ctx.fillStyle = "#888";
+          ctx.fillRect(x, y, w, h);
+          ctx.fillStyle = "#9cf";
+          ctx.fillRect(x + w * 0.7, y + h * 0.15, w * 0.17, h * 0.7);
+          if (border) {
+            ctx.strokeStyle = border;
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, w, h);
+          }
+        } else {
+          // 보행자: 남색 원
+          let size = ob.lengthM * ppm;
+          if (size < MIN_PED_DRAW_PX) {
+            size = MIN_PED_DRAW_PX;
+            enlarged = true;
+          }
+          ctx.fillStyle = "#1a3a8a";
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, size / 2, 0, Math.PI * 2);
+          ctx.fill();
+          if (border) {
+            ctx.strokeStyle = border;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+          }
+        }
+      }
+      return enlarged;
+    }
+
+    // 충돌했으면 그림판 가운데에 흰 상자 + 빨간 굵은 글씨
+    function drawCrash() {
+      if (!sim.collided) return;
+      const text = "충돌! 충돌 속도 " + Math.round(sim.crashKmh) + " km/h";
+      ctx.font = "bold 28px sans-serif";
+      const boxW = ctx.measureText(text).width + 40;
+      const boxH = 56;
+      const boxX = (canvas.width - boxW) / 2;
+      const boxY = (canvas.height - boxH) / 2;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.strokeStyle = "#e00";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+      ctx.fillStyle = "#e00";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+      ctx.textBaseline = "alphabetic"; // 다른 글자에 영향 없게 원래대로
     }
 
     // 아래쪽 안내: 줌 정보, 차 그림 확대 안내
@@ -490,19 +1006,32 @@
       let currentText = "현재 속도: " + currentKmh + " km/h";
       if (!running) currentText += " (일시정지)";
 
-      ctx.fillStyle = "#000";
       ctx.font = "bold 22px sans-serif";
       ctx.textAlign = "left";
-      ctx.fillText(currentText, 15, 35);
-      ctx.fillText("목표 속도: " + car.targetSpeedKmh + " km/h", 15, 65);
+      drawTextWithBg(currentText, 15, 35, "#000");
+      drawTextWithBg("목표 속도: " + car.targetSpeedKmh + " km/h", 15, 65, "#000");
 
       // 오른쪽 위: 적용 중인 값과 현재 가속도
       ctx.textAlign = "right";
       ctx.font = "18px sans-serif";
-      ctx.fillText("적용 중 | 가속도 " + ACCELERATION + " · 감속도 " + DECELERATION +
-                   " · 브레이크 " + BRAKE_DECELERATION + " m/s²", canvas.width - 15, 33);
+      drawTextWithBg("적용 중 | 가속도 " + formatValue(sim.ACCELERATION, 1) + " · 감속도 " + formatValue(sim.DECELERATION, 1) +
+                   " · 브레이크 " + formatValue(sim.BRAKE_DECELERATION, 1) + " m/s²", canvas.width - 15, 33, "#000");
       ctx.font = "bold 20px sans-serif";
-      ctx.fillText("현재 가속도: " + formatAccel(car.accelMs2) + " m/s²", canvas.width - 15, 63);
+      drawTextWithBg("현재 가속도: " + formatAccel(car.accelMs2) + " m/s²", canvas.width - 15, 63, "#000");
+    }
+
+    // 글자 뒤에 반투명 흰 바탕(글자 폭 + 좌우 4px, 글자 높이에 맞게)을 먼저 깔고 글자 그리기
+    // (지금 설정된 글꼴·정렬을 그대로 씀)
+    function drawTextWithBg(text, x, y, color) {
+      const m = ctx.measureText(text);
+      let left = x;
+      if (ctx.textAlign === "right") left = x - m.width;
+      else if (ctx.textAlign === "center") left = x - m.width / 2;
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      ctx.fillRect(left - 4, y - m.actualBoundingBoxAscent - 2,
+                   m.width + 8, m.actualBoundingBoxAscent + m.actualBoundingBoxDescent + 4);
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, y);
     }
 
     // 가속도 숫자에 +/− 붙이기 (아주 작은 값은 0으로)
@@ -512,24 +1041,15 @@
       return a > 0 ? "+" + text : "−" + text;
     }
 
-    // 현재 속도를 목표 속도 쪽으로 조금씩 바꾸기 (dt = 지난 시간, 초)
-    function updateSpeed(dt) {
-      if (braking || brakeLatched) {
-        // 브레이크(둘 중 하나라도 켜짐): 목표와 상관없이 크게 줄이고, 0 아래로는 안 내려감
-        // 0이 되어도 켜져 있으면 계속 0에 머묾
-        car.speedMs = Math.max(0, car.speedMs - BRAKE_DECELERATION * dt);
-        return;
-      }
-
-      const targetMs = kmhToMs(car.targetSpeedKmh);
-      if (car.speedMs < targetMs) {
-        // 가속: 목표를 넘지 않게
-        car.speedMs = Math.min(targetMs, car.speedMs + ACCELERATION * dt);
-      } else if (car.speedMs > targetMs) {
-        // 감속: 목표 아래로 내려가지 않게
-        car.speedMs = Math.max(targetMs, car.speedMs - DECELERATION * dt);
-      }
+    // 숫자를 글자로: 소수 자릿수가 최소보다 적으면 채우고, 많으면 그대로
+    // 예) (3,1)→"3.0", (2.55,1)→"2.55", (0.01,3)→"0.010", (1500,0)→"1500"
+    function formatValue(value, minDigits) {
+      const text = String(value);
+      const dot = text.indexOf(".");
+      const digits = dot < 0 ? 0 : text.length - dot - 1;
+      return digits < minDigits ? value.toFixed(minDigits) : text;
     }
+
 
     // 화면 전체 다시 그리기
     function draw() {
@@ -537,38 +1057,183 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawRoad(camLeft);
       drawTicks(camLeft);
+      const det = detectAll(); // 일시정지 중에도 감지 결과가 보이게 그릴 때마다 계산 (표시 체크와 상관없음)
+      if (showRadar) drawSensorZones(radar, camLeft);
+      if (showCamera) drawSensorZones(camera, camLeft);
+      if (showLidar) drawLidar(det.lidarHits, camLeft);
+      const obstaclesEnlarged = drawObstacles(camLeft, det);
+      if (showCamera) drawCameraLabels(det.camera, camLeft);
       const carEnlarged = drawCar(camLeft);
       drawSpeed();          // 글씨는 줌과 상관없이 같은 크기(픽셀)로 그림
-      drawZoomInfo(carEnlarged);
+      drawAutoBrakeText();
+      drawZoomInfo(carEnlarged || obstaclesEnlarged);
+      drawCrash();
       showBrakeStats();
+      showForces();
+      showSensor(det);
     }
 
-    // 브레이크가 켜졌는지/꺼졌는지 확인해서, 바뀌는 순간에 측정을 시작하거나 취소
+    // 부채꼴 센서(레이더·카메라)의 감지 영역 그리기 (색은 영역마다 정해 둔 값)
+    function drawSensorZones(sensor, camLeft) {
+      const ppm = pixelsPerMeter();
+      const x = toScreenX(sensor.xM, camLeft);
+      const y = toScreenY(sensor.yM);
+      for (const zone of sensor.zones) {
+        const half = zone.halfAngleDeg * Math.PI / 180;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.arc(x, y, zone.rangeM * ppm, -half, half); // 화면 아래쪽이 + 각도
+        ctx.closePath();
+        ctx.fillStyle = zone.fill;
+        ctx.fill();
+        ctx.strokeStyle = zone.line;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    // 라이다: 감지 거리 원(점선) + 장애물에 닿은 광선만 선과 점으로
+    // ("라이다 전체 광선" 체크가 켜져 있으면 안 닿은 광선도 흐리게)
+    function drawLidar(hitPoints, camLeft) {
+      const ppm = pixelsPerMeter();
+      const x = toScreenX(lidar.xM, camLeft);
+      const y = toScreenY(lidar.yM);
+
+      ctx.strokeStyle = "rgba(150,80,220,0.8)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.arc(x, y, sim.LIDAR_RANGE_M * ppm, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (showAllLidarRays) drawAllLidarRays(camLeft);
+
+      ctx.strokeStyle = "rgba(150,80,220,0.6)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (const p of hitPoints) {
+        ctx.moveTo(x, y);
+        ctx.lineTo(toScreenX(p.xM, camLeft), toScreenY(p.yM));
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = "rgb(150,80,220)";
+      for (const p of hitPoints) {
+        ctx.beginPath();
+        ctx.arc(toScreenX(p.xM, camLeft), toScreenY(p.yM), 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 그림 전용: 라이다 광선 전부를 설치 위치 → (닿은 점 또는 감지 거리 끝)까지 흐리게
+    // 감지 계산(scanLidar)과 같은 방법으로 끝점만 다시 구함. 감지 결과에는 영향 없음
+    function drawAllLidarRays(camLeft) {
+      const ox = lidar.xM, oy = lidar.yM;
+      const x = toScreenX(ox, camLeft), y = toScreenY(oy);
+      const rayCount = Math.floor(360 / sim.LIDAR_RES_DEG + 1e-9);
+      ctx.strokeStyle = "rgba(150,80,220,0.12)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i < rayCount; i++) {
+        const rad = i * sim.LIDAR_RES_DEG * Math.PI / 180;
+        const dirX = Math.cos(rad), dirY = Math.sin(rad);
+        let endT = sim.LIDAR_RANGE_M;
+        for (const ob of obstacles) {
+          const t = rayHitRect(ox, oy, dirX, dirY,
+            ob.xM - ob.lengthM / 2, ob.xM + ob.lengthM / 2, ob.yM - ob.widthM / 2, ob.yM + ob.widthM / 2);
+          if (t !== null && t < endT) endT = t;
+        }
+        ctx.moveTo(x, y);
+        ctx.lineTo(toScreenX(ox + dirX * endT, camLeft), toScreenY(oy + dirY * endT));
+      }
+      ctx.stroke();
+    }
+
+    // 카메라가 감지한 장애물 위에 판별 종류("차"/"보행자")를 작은 글씨로
+    function drawCameraLabels(cameraList, camLeft) {
+      ctx.font = "bold 13px sans-serif";
+      ctx.textAlign = "center";
+      for (const d of cameraList) {
+        const ob = d.obstacle;
+        // 그림이 최소 크기로 커졌을 수도 있으니 위쪽 여유를 넉넉히
+        const topY = toScreenY(ob.yM) - Math.max(ob.widthM * pixelsPerMeter(), MIN_CAR_DRAW_PX) / 2 - 4;
+        drawTextWithBg(d.kind, toScreenX(ob.xM, camLeft), topY, "rgb(200,100,0)");
+      }
+    }
+
+    // 자동 제동 중이면 그림판 위쪽 가운데에 주황 글씨
+    function drawAutoBrakeText() {
+      if (!sim.autoBraking) return;
+      ctx.font = "bold 22px sans-serif";
+      ctx.textAlign = "center";
+      drawTextWithBg("자동 제동 중", canvas.width / 2, 100, "#e07000");
+    }
+
+    // 센서 칸에 상태, 가장 가까운 후보, 실제 장애물 기준 표 보여주기
+    function showSensor(det) {
+      const noSensor = !sim.aebUseRadar && !sim.aebUseLidar && !sim.aebUseCamera;
+      const state = document.getElementById("sensorState");
+      state.textContent = !sim.aebEnabled ? "꺼짐" : sim.autoBraking ? "자동 제동 중" :
+        noSensor ? "감시 중 (선택된 센서 없음)" : "감시 중";
+      state.classList.toggle("warn", sim.autoBraking);
+
+      const target = nearestCandidate(det);
+      let targetText = "경로 안 감지 물체 없음";
+      if (target !== null) {
+        // TTC(충돌까지 남은 시간) = 남은 거리 ÷ 현재 속도. 거의 멈춰 있으면 "-"
+        const ttc = car.speedMs > 0.1 ? (target.gapM / car.speedMs).toFixed(1) + " 초" : "-";
+        targetText = "남은 거리 " + target.gapM.toFixed(1) + " m · 필요 제동거리 " +
+          (requiredStopM() + sim.SAFETY_MARGIN_M).toFixed(1) + " m (안전 여유 포함) · TTC " + ttc;
+      }
+      document.getElementById("sensorTarget").textContent = targetText;
+
+      // 실제 장애물 기준 표 (감지 안 된 장애물도 모두, 최대 10줄)
+      // 센서마다 ○(알려주는 값) 또는 ×
+      let rows = "";
+      obstacles.slice(0, 10).forEach(function (ob, i) {
+        const r = findDetection(det.radar, ob);
+        const l = findDetection(det.lidar, ob);
+        const c = findDetection(det.camera, ob);
+        const info = pathInfo(ob);
+        rows += "<tr><td>" + (i + 1) + "</td><td>" + (ob.kind === "car" ? "차" : "보행자") +
+          "</td><td>" + (r ? "○ " + r.closingMs.toFixed(1) : "×") +
+          "</td><td>" + (l ? "○ " + l.rays : "×") +
+          "</td><td>" + (c ? "○ " + c.kind : "×") +
+          "</td><td>" + info.gapM.toFixed(1) +
+          "</td><td>" + (info.inPath ? "안" : "밖") + "</td></tr>";
+      });
+      document.getElementById("sensorRows").innerHTML = rows;
+      document.querySelector(".sensor-table-wrap").classList.toggle("hidden", obstacles.length === 0);
+      document.getElementById("sensorEmpty").textContent = obstacles.length === 0 ? "장애물 없음" : "";
+    }
+
+    // 힘 글자: 정수로 반올림, sign이 true면 +/− 붙이기
+    function formatForce(n, sign) {
+      const r = Math.round(n);
+      if (!sign || r === 0) return Math.abs(r) + " N";
+      return (r > 0 ? "+" : "−") + Math.abs(r) + " N";
+    }
+
+    // 차에 걸리는 힘 칸에 지금 상태 기준 숫자 보여주기 (일시정지·정지 중에도)
+    function showForces() {
+      const f = computeForces(car.speedMs);
+      document.getElementById("forceTire").textContent = formatForce(f.tireN, true);
+      document.getElementById("forceMode").textContent = f.mode;
+      document.getElementById("forceDrag").textContent = formatForce(f.dragN, false);
+      document.getElementById("forceRolling").textContent = formatForce(f.rollingN, false);
+      document.getElementById("forceTotal").textContent = formatForce(f.totalN, true);
+      document.getElementById("forceLimit").textContent = formatForce(f.frictionLimitN, false);
+      const state = document.getElementById("forceState");
+      state.textContent = f.limited ? "마찰 한계로 제한됨" : "정상";
+      state.classList.toggle("warn", f.limited);
+    }
+
+    // 브레이크가 켜졌는지/꺼졌는지 계산 쪽(sim)에서 확인하고, 제동거리 칸을 바로 다시 보여줌
     // (브레이크 버튼 두 개 중 무엇이 바뀌든 이 함수를 부름)
     function checkBrakeChange() {
-      const active = braking || brakeLatched;
-      if (active && !brakeStats.wasActive) {
-        // 꺼짐 → 켜짐: 새로 측정 시작
-        brakeStats.startKmh = msToKmh(car.speedMs);
-        brakeStats.segmentM = 0;
-        brakeStats.stopM = 0;
-        brakeStats.status = car.speedMs === 0 ? "이미 정지" : "측정 중";
-      } else if (!active && brakeStats.wasActive) {
-        // 켜짐 → 꺼짐: 구간 거리는 그대로 고정, 정지 전에 뗐으면 취소
-        if (brakeStats.status === "측정 중") brakeStats.status = "중간에 뗌";
-      }
-      brakeStats.wasActive = active;
+      sim.checkBrakeChange();
       showBrakeStats();
-    }
-
-    // 프레임마다 달린 거리를 더하기 (달리는 중에만 불림 → 일시정지 중엔 안 늘어남)
-    function addBrakeDistance(stepM) {
-      if (!(braking || brakeLatched)) return;
-      brakeStats.segmentM += stepM;
-      if (brakeStats.status === "측정 중") {
-        brakeStats.stopM += stepM;
-        if (car.speedMs === 0) brakeStats.status = "정지 완료";
-      }
     }
 
     // 제동거리 칸에 숫자 보여주기
@@ -577,7 +1242,7 @@
       document.getElementById("statStartSpeed").textContent = Math.round(brakeStats.startKmh) + " km/h";
       document.getElementById("statSegment").textContent = brakeStats.segmentM.toFixed(1) + " m";
       document.getElementById("statStop").textContent =
-        brakeStats.status === "중간에 뗌" ? "-" : brakeStats.stopM.toFixed(1) + " m";
+        brakeStats.status === "중간에 뗌" || brakeStats.status === "충돌로 중단" ? "-" : brakeStats.stopM.toFixed(1) + " m";
       document.getElementById("statStopStatus").textContent = brakeStats.status;
     }
 
@@ -590,19 +1255,12 @@
       const dt = Math.min((time - lastTime) / 1000, MAX_DT);
       lastTime = time;
 
-      // 속도를 먼저 바꾸고, 그 속도로 차를 오른쪽으로 이동
-      const speedBefore = car.speedMs;
-      updateSpeed(dt);
-      if (dt > 0) car.accelMs2 = (car.speedMs - speedBefore) / dt; // 실제 속도 변화로 현재 가속도 계산
-
-      // 이번 프레임에 달린 거리(m) = 이전 속도와 새 속도의 평균 × 시간
-      const stepM = (speedBefore + car.speedMs) / 2 * dt;
-      car.xM += stepM;
-      addBrakeDistance(stepM);
-
-      // 도로 오른쪽 끝을 완전히 지나가면 다시 왼쪽 밖에서 시작
-      if (car.xM > ROAD_LENGTH_M) {
-        car.xM = -CAR_LENGTH_M;
+      // 한 프레임 계산(속도 → 이동 → 제동거리 → 보행자 → 충돌 → 자동 정지)은 sim-core.js의 stepSimulation
+      // 충돌했으면 일시정지하고 이 프레임에서 끝 (다음 프레임 요청 안 함)
+      if (sim.stepSimulation(dt)) {
+        showObstacleMessage("충돌! 충돌 속도 " + Math.round(sim.crashKmh) + " km/h", "crash");
+        button.click(); // 시작/일시정지 버튼을 대신 눌러 일시정지 (다시 그리기도 여기서)
+        return;
       }
 
       draw();
@@ -611,6 +1269,11 @@
 
     // 버튼을 누르면 시작/정지 전환
     button.addEventListener("click", function () {
+      // 충돌 상태에서는 출발하지 않음
+      if (!running && sim.collided) {
+        showObstacleMessage("장애물을 지우고 다시 시작하세요", "error");
+        return;
+      }
       running = !running;
       if (running) {
         button.textContent = "일시정지";
@@ -623,15 +1286,15 @@
       }
     });
 
-    // 브레이크: 누르는 동안만 braking = true
+    // 브레이크: 누르는 동안만 sim.braking = true
     function brakeOn(event) {
       event.preventDefault();
-      braking = true;
+      sim.braking = true;
       brakeButton.classList.add("pressed");
       checkBrakeChange();
     }
     function brakeOff() {
-      braking = false;
+      sim.braking = false;
       brakeButton.classList.remove("pressed");
       checkBrakeChange();
     }
@@ -645,8 +1308,8 @@
     // (일시정지 중에 눌러도 상태만 바뀌고, 다시 시작하면 그 상태로 계산됨)
     const brakeLatchButton = document.getElementById("brakeLatchBtn");
     brakeLatchButton.addEventListener("click", function () {
-      brakeLatched = !brakeLatched;
-      if (brakeLatched) {
+      sim.brakeLatched = !sim.brakeLatched;
+      if (sim.brakeLatched) {
         brakeLatchButton.textContent = "브레이크 해제";
         brakeLatchButton.classList.add("latched");
       } else {
@@ -668,15 +1331,21 @@
     }
 
     // 입력칸 + 확인 버튼 + Enter 키를 한 번에 연결하기
+    // minDigits: 표시할 최소 소수 자릿수 (3 → "3.0"처럼)
     // getValue: 지금 값 알려주기, setValue: 새 값 적용하기
-    function setupInput(inputId, buttonId, errorId, min, max, integerOnly, getValue, setValue) {
+    function setupInput(inputId, buttonId, errorId, min, max, integerOnly, minDigits, getValue, setValue) {
       const input = document.getElementById(inputId);
       const okButton = document.getElementById(buttonId);
       const error = document.getElementById(errorId);
       const kind = integerOnly ? "정수" : "숫자";
       let messageTimer = null;
 
-      input.value = getValue(); // 처음 값 보여주기
+      // 지금 적용 중인 값을 화면에 보일 글자로
+      function currentText() {
+        return formatValue(getValue(), minDigits);
+      }
+
+      input.value = currentText(); // 처음 값 보여주기
 
       // 안내 문구 바꾸기. type: "" = 빨강(오류), "pending" = 노랑, "info" = 회색
       function showMessage(text, type) {
@@ -687,17 +1356,17 @@
 
       // 입력칸 글자가 적용 중인 값과 다른지 (= 아직 확인 안 누름)
       function isPending() {
-        return input.value !== String(getValue());
+        return input.value !== currentText();
       }
 
       function confirm() {
         const value = parseInput(input.value, min, max, integerOnly);
         if (value === null) {
-          showMessage(min + "~" + max + " 사이의 " + kind + "로 입력하세요 (지금 값 " + getValue() + " 유지)", "");
+          showMessage(min + "~" + max + " 사이의 " + kind + "로 입력하세요 (지금 값 " + currentText() + " 유지)", "");
           return;
         }
         showMessage("", "");
-        input.value = value; // "05" 같은 입력을 "5"로 정리
+        input.value = formatValue(value, minDigits); // "05"는 "5"로, "3"은 "3.0"으로 정리
         input.classList.remove("pending");
         setValue(value);
         draw();
@@ -707,7 +1376,7 @@
       input.addEventListener("input", function () {
         if (isPending()) {
           input.classList.add("pending");
-          showMessage("확인을 누르세요 (아직 적용 안 됨, 지금 값 " + getValue() + ")", "pending");
+          showMessage("확인을 누르세요 (아직 적용 안 됨, 지금 값 " + currentText() + ")", "pending");
         } else {
           input.classList.remove("pending");
           showMessage("", "");
@@ -718,7 +1387,7 @@
       input.addEventListener("blur", function (event) {
         if (event.relatedTarget === okButton) return; // 확인 버튼으로 가는 중이면 되돌리지 않음
         if (!isPending()) return;
-        input.value = getValue();
+        input.value = currentText();
         input.classList.remove("pending");
         showMessage("적용되지 않았습니다", "info");
         messageTimer = setTimeout(function () { showMessage("", ""); }, 2000);
@@ -732,23 +1401,80 @@
       input.addEventListener("keydown", function (event) {
         if (event.key === "Enter") confirm();
       });
+
+      // 밖에서 부르는 정리 함수: 입력칸을 적용 중인 값으로 맞추고, 노란 테두리·안내 문구 지우기
+      // (설정 화면의 [돌아가기], [기본값으로 되돌리기]에서 씀)
+      return function clear() {
+        input.value = currentText();
+        input.classList.remove("pending");
+        showMessage("", "");
+      };
     }
 
     // 목표 속도: 입력칸에서 확인하면 슬라이더도 같이 움직임
-    setupInput("speedInput", "speedOk", "speedError", SPEED_MIN, SPEED_MAX, true,
+    setupInput("speedInput", "speedOk", "speedError", SPEED_MIN, SPEED_MAX, true, 0,
       function () { return car.targetSpeedKmh; },
       function (v) { car.targetSpeedKmh = v; slider.value = v; });
 
-    // 가속도, 감속도, 브레이크 감속도
-    setupInput("accelInput", "accelOk", "accelError", ACCEL_MIN, ACCEL_MAX, false,
-      function () { return ACCELERATION; },
-      function (v) { ACCELERATION = v; });
-    setupInput("decelInput", "decelOk", "decelError", ACCEL_MIN, ACCEL_MAX, false,
-      function () { return DECELERATION; },
-      function (v) { DECELERATION = v; });
-    setupInput("brakeInput", "brakeOk", "brakeError", ACCEL_MIN, ACCEL_MAX, false,
-      function () { return BRAKE_DECELERATION; },
-      function (v) { BRAKE_DECELERATION = v; });
+    // 설정 화면 8줄 (주행 3줄 + 차량·노면 5줄). 정리 함수 8개를 모아 둠
+    const settingClears = [
+      // 주행
+      setupInput("accelInput", "accelOk", "accelError", ACCEL_MIN, ACCEL_MAX, false, 1,
+        function () { return sim.ACCELERATION; },
+        function (v) { sim.ACCELERATION = v; }),
+      setupInput("decelInput", "decelOk", "decelError", ACCEL_MIN, ACCEL_MAX, false, 1,
+        function () { return sim.DECELERATION; },
+        function (v) { sim.DECELERATION = v; }),
+      setupInput("brakeInput", "brakeOk", "brakeError", ACCEL_MIN, ACCEL_MAX, false, 1,
+        function () { return sim.BRAKE_DECELERATION; },
+        function (v) { sim.BRAKE_DECELERATION = v; }),
+      // 차량·노면
+      setupInput("massInput", "massOk", "massError", MASS_MIN, MASS_MAX, true, 0,
+        function () { return sim.MASS_KG; },
+        function (v) { sim.MASS_KG = v; }),
+      setupInput("cdInput", "cdOk", "cdError", CD_MIN, CD_MAX, false, 2,
+        function () { return sim.DRAG_CD; },
+        function (v) { sim.DRAG_CD = v; }),
+      setupInput("areaInput", "areaOk", "areaError", AREA_MIN, AREA_MAX, false, 1,
+        function () { return sim.FRONTAL_AREA_M2; },
+        function (v) { sim.FRONTAL_AREA_M2 = v; }),
+      setupInput("crrInput", "crrOk", "crrError", CRR_MIN, CRR_MAX, false, 3,
+        function () { return sim.ROLLING_CRR; },
+        function (v) { sim.ROLLING_CRR = v; }),
+      setupInput("muInput", "muOk", "muError", MU_MIN, MU_MAX, false, 1,
+        function () { return sim.ROAD_MU; },
+        function (v) { sim.ROAD_MU = v; }),
+      // 센서(레이더)
+      setupInput("farRangeInput", "farRangeOk", "farRangeError", RANGE_MIN, RANGE_MAX, false, 0,
+        function () { return sim.RADAR_FAR_RANGE_M; },
+        function (v) { sim.RADAR_FAR_RANGE_M = v; }),
+      setupInput("farDegInput", "farDegOk", "farDegError", DEG_MIN, DEG_MAX, false, 0,
+        function () { return sim.RADAR_FAR_HALF_DEG; },
+        function (v) { sim.RADAR_FAR_HALF_DEG = v; }),
+      setupInput("nearRangeInput", "nearRangeOk", "nearRangeError", RANGE_MIN, RANGE_MAX, false, 0,
+        function () { return sim.RADAR_NEAR_RANGE_M; },
+        function (v) { sim.RADAR_NEAR_RANGE_M = v; }),
+      setupInput("nearDegInput", "nearDegOk", "nearDegError", DEG_MIN, DEG_MAX, false, 0,
+        function () { return sim.RADAR_NEAR_HALF_DEG; },
+        function (v) { sim.RADAR_NEAR_HALF_DEG = v; }),
+      setupInput("marginInput", "marginOk", "marginError", MARGIN_MIN, MARGIN_MAX, false, 1,
+        function () { return sim.SAFETY_MARGIN_M; },
+        function (v) { sim.SAFETY_MARGIN_M = v; }),
+      // 센서(라이다)
+      setupInput("lidarRangeInput", "lidarRangeOk", "lidarRangeError", LIDAR_RANGE_MIN, LIDAR_RANGE_MAX, false, 0,
+        function () { return sim.LIDAR_RANGE_M; },
+        function (v) { sim.LIDAR_RANGE_M = v; }),
+      setupInput("lidarResInput", "lidarResOk", "lidarResError", LIDAR_RES_MIN, LIDAR_RES_MAX, false, 1,
+        function () { return sim.LIDAR_RES_DEG; },
+        function (v) { sim.LIDAR_RES_DEG = v; }),
+      // 센서(카메라)
+      setupInput("camRangeInput", "camRangeOk", "camRangeError", CAM_RANGE_MIN, CAM_RANGE_MAX, false, 0,
+        function () { return sim.CAMERA_RANGE_M; },
+        function (v) { sim.CAMERA_RANGE_M = v; }),
+      setupInput("camDegInput", "camDegOk", "camDegError", DEG_MIN, DEG_MAX, false, 0,
+        function () { return sim.CAMERA_HALF_DEG; },
+        function (v) { sim.CAMERA_HALF_DEG = v; })
+    ];
 
     // 슬라이더를 움직이면 목표 속도와 입력칸 숫자를 바꾸기 (현재 속도는 서서히 따라감)
     slider.value = car.targetSpeedKmh;
@@ -779,7 +1505,156 @@
       zoom(event.deltaY > 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
     }, { passive: false });
 
-    // 처음 열었을 때 한 번 그려 두기
+    // ===== 장애물 칸 =====
+    const obMessage = document.getElementById("obMessage");
+
+    // 장애물 칸 안내 문구. type: "" = 회색, "error" = 빨강, "crash" = 빨강 굵게
+    function showObstacleMessage(text, type) {
+      obMessage.textContent = text;
+      obMessage.className = "ob-message" + (type ? " " + type : "");
+    }
+
+    // 장애물 놓기. 앞쪽 거리 = 내 차 앞범퍼에서 장애물의 가까운 쪽 끝까지
+    function addObstacle(kind, lengthM, widthM, heightM, yM, vyMs) {
+      const distM = parseInput(document.getElementById("obDistInput").value, 1, 1000, false);
+      if (distM === null) {
+        showObstacleMessage("1~1000 사이의 숫자로 입력하세요", "error");
+        return;
+      }
+      // 놓을 수 있는지 판단과 장애물 만들기는 sim-core.js의 placeObstacle
+      const result = sim.placeObstacle(kind, lengthM, widthM, heightM, yM, vyMs, distM);
+      if (result === "max") {
+        showObstacleMessage("장애물은 최대 " + MAX_OBSTACLES + "개까지 놓을 수 있습니다", "error");
+        return;
+      }
+      if (result === "roadEnd") {
+        showObstacleMessage("도로 끝(" + ROAD_LENGTH_M + " m)을 넘어서 놓을 수 없습니다", "error");
+        return;
+      }
+      if (!sim.collided) showObstacleMessage("장애물 " + obstacles.length + "개", "");
+      draw();
+    }
+
+    // [앞차 정지]: 내 차로에 서 있는 차
+    document.getElementById("obCarBtn").addEventListener("click", function () {
+      addObstacle("car", CAR_LENGTH_M, CAR_WIDTH_M, CAR_HEIGHT_M, MY_LANE_Y_M, 0);
+    });
+    // [보행자 서 있음]: 내 차로 가운데에 서 있음
+    document.getElementById("obPedStandBtn").addEventListener("click", function () {
+      addObstacle("ped", PED_SIZE_M, PED_SIZE_M, PED_HEIGHT_M, MY_LANE_Y_M, 0);
+    });
+    // [보행자 건너옴]: 도로 위쪽 밖에서 아래쪽으로 걸어옴
+    document.getElementById("obPedCrossBtn").addEventListener("click", function () {
+      addObstacle("ped", PED_SIZE_M, PED_SIZE_M, PED_HEIGHT_M,
+        -(ROAD_WIDTH_M / 2 + PED_SIZE_M), PED_WALK_SPEED_MS);
+    });
+    // [지우기]: 장애물 모두 없애고 충돌 상태도 풀기
+    document.getElementById("obClearBtn").addEventListener("click", function () {
+      obstacles.length = 0;
+      sim.collided = false;
+      sim.autoBraking = false;  // 자동 제동도 풀기
+      checkBrakeChange();
+      showObstacleMessage("", "");
+      draw();
+    });
+
+    // [자동 정지: 꺼짐/켜짐] 버튼
+    const aebButton = document.getElementById("aebBtn");
+    aebButton.addEventListener("click", function () {
+      sim.aebEnabled = !sim.aebEnabled;
+      aebButton.textContent = sim.aebEnabled ? "자동 정지: 켜짐" : "자동 정지: 꺼짐";
+      aebButton.classList.toggle("on", sim.aebEnabled);
+      if (!sim.aebEnabled) {
+        sim.autoBraking = false;
+        checkBrakeChange();
+      }
+      draw();
+    });
+
+    // 자동 정지에 쓸 센서 / 그림판 표시 체크박스: 바뀌면 값만 바꾸고 다시 그리기
+    function linkCheckbox(id, setValue) {
+      const box = document.getElementById(id);
+      box.addEventListener("change", function () {
+        setValue(box.checked);
+        draw();
+      });
+    }
+    linkCheckbox("useRadar", function (v) { sim.aebUseRadar = v; });
+    linkCheckbox("useLidar", function (v) { sim.aebUseLidar = v; });
+    linkCheckbox("useCamera", function (v) { sim.aebUseCamera = v; });
+    linkCheckbox("showRadarChk", function (v) { showRadar = v; });
+    linkCheckbox("showLidarChk", function (v) { showLidar = v; });
+    linkCheckbox("showCameraChk", function (v) { showCamera = v; });
+    linkCheckbox("showAllRaysChk", function (v) { showAllLidarRays = v; });
+
+    // ===== 화면 전환 (시작 / 설정 / 시뮬레이션 중 하나만 보이게) =====
+    const screens = {
+      start: document.getElementById("startScreen"),
+      settings: document.getElementById("settingsScreen"),
+      sim: document.getElementById("simScreen")
+    };
+    function showScreen(name) {
+      for (const key in screens) {
+        screens[key].classList.toggle("hidden", key !== name);
+      }
+    }
+
+    // 시작 화면: [실행] → 시뮬레이션 화면 (자동으로 출발하지 않고 이전 상태 그대로)
+    document.getElementById("goSimBtn").addEventListener("click", function () {
+      showScreen("sim");
+      draw();
+    });
+    // 시작 화면: [설정] → 설정 화면
+    document.getElementById("goSettingsBtn").addEventListener("click", function () {
+      showScreen("settings");
+    });
+
+    // 설정 화면: [기본값으로 되돌리기] → 확인 창 없이 바로 적용
+    // (목표 속도, 차 위치·속도, 제동거리 기록은 건드리지 않음)
+    const resetNotice = document.getElementById("resetNotice");
+    let resetNoticeTimer = null;
+    document.getElementById("resetDefaultsBtn").addEventListener("click", function () {
+      sim.ACCELERATION = DEFAULT_ACCELERATION;
+      sim.DECELERATION = DEFAULT_DECELERATION;
+      sim.BRAKE_DECELERATION = DEFAULT_BRAKE_DECELERATION;
+      sim.MASS_KG = DEFAULT_MASS_KG;
+      sim.DRAG_CD = DEFAULT_DRAG_CD;
+      sim.FRONTAL_AREA_M2 = DEFAULT_FRONTAL_AREA_M2;
+      sim.ROLLING_CRR = DEFAULT_ROLLING_CRR;
+      sim.ROAD_MU = DEFAULT_ROAD_MU;
+      sim.RADAR_FAR_RANGE_M = DEFAULT_RADAR_FAR_RANGE_M;
+      sim.RADAR_FAR_HALF_DEG = DEFAULT_RADAR_FAR_HALF_DEG;
+      sim.RADAR_NEAR_RANGE_M = DEFAULT_RADAR_NEAR_RANGE_M;
+      sim.RADAR_NEAR_HALF_DEG = DEFAULT_RADAR_NEAR_HALF_DEG;
+      sim.SAFETY_MARGIN_M = DEFAULT_SAFETY_MARGIN_M;
+      sim.LIDAR_RANGE_M = DEFAULT_LIDAR_RANGE_M;
+      sim.LIDAR_RES_DEG = DEFAULT_LIDAR_RES_DEG;
+      sim.CAMERA_RANGE_M = DEFAULT_CAMERA_RANGE_M;
+      sim.CAMERA_HALF_DEG = DEFAULT_CAMERA_HALF_DEG;
+      settingClears.forEach(function (clear) { clear(); }); // 입력칸 숫자·노란 테두리·안내 문구 정리
+
+      // 버튼 아래 안내를 2초 동안 보여주고 지우기
+      clearTimeout(resetNoticeTimer);
+      resetNotice.textContent = "기본값으로 되돌렸습니다";
+      resetNoticeTimer = setTimeout(function () { resetNotice.textContent = ""; }, 2000);
+    });
+
+    // 설정 화면: [돌아가기] → 확인 안 누른 입력칸은 적용 중인 값으로 되돌리고 시작 화면으로
+    document.getElementById("settingsBackBtn").addEventListener("click", function () {
+      settingClears.forEach(function (clear) { clear(); });
+      clearTimeout(resetNoticeTimer);
+      resetNotice.textContent = "";
+      showScreen("start");
+    });
+
+    // 시뮬레이션 화면: [처음 화면으로] → 달리는 중이면 일시정지(시작/일시정지 버튼과 똑같이)
+    // 차 위치·속도·목표 속도·제동거리 기록·"브레이크 작동" 상태는 그대로 둠
+    document.getElementById("simHomeBtn").addEventListener("click", function () {
+      if (running) button.click();
+      showScreen("start");
+    });
+
+    // 처음 열었을 때 한 번 그려 두기 (그림판은 시뮬레이션 화면으로 가야 보임)
     draw();
   </script>
 </body>
