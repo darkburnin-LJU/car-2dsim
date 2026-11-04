@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <!-- 휴대폰에서 화면 폭을 그대로 쓰게 하기 -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>2D 자동차 시뮬레이션 - 9-3단계</title>
+  <title>2D 자동차 시뮬레이션 - 9-4c-2단계</title>
   <style>
     body {
       margin: 0;
@@ -202,6 +202,59 @@
       padding: 8px 6px;
       font-size: 16px;
     }
+    /* 노면 줄(이름 + 버튼 5개), 날씨 줄(이름 + 버튼 4개) */
+    .weather-row,
+    .sky-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 800px;
+      font-size: 16px;
+    }
+    .weather-label {
+      white-space: nowrap;
+    }
+    .weather-row .obstacle-buttons,
+    .sky-row .obstacle-buttons {
+      flex: 1 1 auto;
+    }
+    .weather-row .obstacle-buttons {
+      grid-template-columns: repeat(5, 1fr);
+    }
+    /* 기억한 μ가 없어서 못 누르는 [사용자 설정] */
+    .weather-row button:disabled {
+      color: #999;
+      cursor: default;
+    }
+    /* 지금 노면·날씨 버튼 */
+    .weather-row button.on,
+    .sky-row button.on {
+      background: #555;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+    }
+    /* 클릭으로 놓기 줄: 이름 + 버튼 4개 */
+    .click-mode {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 16px;
+    }
+    .click-mode-label {
+      white-space: nowrap;
+    }
+    .click-mode .obstacle-buttons {
+      flex: 1 1 auto;
+    }
+    /* 켜진 클릭 모드 버튼 */
+    .click-mode button.on {
+      background: #555;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+    }
     /* 장애물 칸 안내: 회색 = 개수, 빨강 = 오류, 빨강 굵게 = 충돌 */
     .ob-message {
       display: block;
@@ -373,6 +426,17 @@
       .obstacle-buttons {
         grid-template-columns: repeat(2, 1fr);
       }
+      /* 클릭으로 놓기·노면·날씨: 이름 아래에 버튼 */
+      .click-mode,
+      .weather-row,
+      .sky-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      /* 노면 버튼은 3칸씩 */
+      .weather-row .obstacle-buttons {
+        grid-template-columns: repeat(3, 1fr);
+      }
       /* 이름 아래에 입력칸이 오게 */
       .setting-row {
         grid-template-columns: 1fr;
@@ -387,7 +451,7 @@
   </style>
 </head>
 <body>
-  <h1>2D 자동차 시뮬레이션 (9-3단계)</h1>
+  <h1>2D 자동차 시뮬레이션 (9-4c-2단계)</h1>
 
   <!-- ===== 화면 1: 시작 화면 (처음 열면 이것만 보임) ===== -->
   <div class="page" id="startScreen">
@@ -571,6 +635,64 @@
         </div>
         <span class="error" id="camDegError"></span>
       </div>
+
+      <!-- 묶음 6: 센서 반응 (측정 주기·연속 확인·추적 기억) -->
+      <h3 class="group-title">센서 반응</h3>
+      <div class="settings-buttons">
+        <button id="idealSensorBtn">이상적 센서</button>
+        <button id="realSensorBtn">현실 센서</button>
+      </div>
+      <p class="hint">이상적 센서: 매 계산 측정·바로 확인·기억 없음 / 현실 센서 값은 일부 예시값</p>
+      <div class="setting-row">
+        <label for="radarPeriodInput">레이더 측정 주기</label>
+        <div class="setting-controls">
+          <input type="text" id="radarPeriodInput" inputmode="decimal">
+          <span class="unit">ms</span>
+          <button id="radarPeriodOk">확인</button>
+        </div>
+        <span class="error" id="radarPeriodError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="lidarPeriodInput">라이다 측정 주기</label>
+        <div class="setting-controls">
+          <input type="text" id="lidarPeriodInput" inputmode="decimal">
+          <span class="unit">ms</span>
+          <button id="lidarPeriodOk">확인</button>
+        </div>
+        <span class="error" id="lidarPeriodError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="cameraPeriodInput">카메라 측정 주기</label>
+        <div class="setting-controls">
+          <input type="text" id="cameraPeriodInput" inputmode="decimal">
+          <span class="unit">ms</span>
+          <button id="cameraPeriodOk">확인</button>
+        </div>
+        <span class="error" id="cameraPeriodError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="confirmInput">연속 확인 횟수</label>
+        <div class="setting-controls">
+          <input type="text" id="confirmInput" inputmode="numeric">
+          <span class="unit">번</span>
+          <button id="confirmOk">확인</button>
+        </div>
+        <span class="error" id="confirmError"></span>
+      </div>
+      <div class="setting-row">
+        <label for="memoryInput">추적 기억 시간</label>
+        <div class="setting-controls">
+          <input type="text" id="memoryInput" inputmode="decimal">
+          <span class="unit">초</span>
+          <button id="memoryOk">확인</button>
+        </div>
+        <span class="error" id="memoryError"></span>
+      </div>
+
+      <!-- 묶음 7: 날씨별 센서 감지 거리 비율 (9줄은 아래 스크립트에서 만듦) -->
+      <h3 class="group-title">날씨별 센서 감지 거리 비율</h3>
+      <p class="hint">맑음은 항상 1.0 / 대부분 예시값(레이더 비, 라이다 안개만 자료 참고)</p>
+      <div id="factorRows"></div>
     </div>
 
     <div class="settings-buttons">
@@ -603,6 +725,29 @@
       <button id="brakeLatchBtn">브레이크 작동</button>
     </div>
 
+    <!-- 2-1. 노면: 누르면 노면 마찰계수가 바뀜 -->
+    <div class="weather-row">
+      <span class="weather-label">노면:</span>
+      <div class="obstacle-buttons">
+        <button data-weather="clear">마른</button>
+        <button data-weather="rain">젖은</button>
+        <button data-weather="snow">눈길</button>
+        <button data-weather="ice">빙판</button>
+        <button data-weather="custom" id="weatherCustomBtn" disabled>사용자 설정</button>
+      </div>
+    </div>
+
+    <!-- 2-2. 날씨: 누르면 센서 감지 거리가 바뀜 (노면 μ는 그대로) -->
+    <div class="sky-row">
+      <span class="weather-label">날씨:</span>
+      <div class="obstacle-buttons">
+        <button data-sky="clear">맑음</button>
+        <button data-sky="rain">비</button>
+        <button data-sky="snow">눈</button>
+        <button data-sky="fog">안개</button>
+      </div>
+    </div>
+
     <!-- 2-2. 장애물 (제동거리 칸과 같은 모양, 회색) -->
     <div class="brake-panel obstacle-panel">
       <h2>장애물</h2>
@@ -616,6 +761,16 @@
         <button id="obPedStandBtn">보행자 서 있음</button>
         <button id="obPedCrossBtn">보행자 건너옴</button>
         <button id="obClearBtn">지우기</button>
+      </div>
+      <!-- 클릭으로 놓기: 켜면 그림판을 클릭한 자리에 장애물이 생김 (앞쪽 거리는 안 씀) -->
+      <div class="click-mode">
+        <span class="click-mode-label">클릭으로 놓기:</span>
+        <div class="obstacle-buttons">
+          <button id="clickOffBtn" data-mode="off" class="on">끔</button>
+          <button id="clickCarBtn" data-mode="car">앞차</button>
+          <button id="clickPedStandBtn" data-mode="pedStand">보행자 서 있음</button>
+          <button id="clickPedCrossBtn" data-mode="pedCross">보행자 건너옴</button>
+        </div>
       </div>
       <span class="ob-message" id="obMessage"></span>
     </div>
@@ -689,7 +844,8 @@
         <label><input type="checkbox" id="showCameraChk" checked>카메라</label>
         <label><input type="checkbox" id="showAllRaysChk">라이다 전체 광선</label>
       </div>
-      <div class="sensor-line">상태: <span id="sensorState">꺼짐</span></div>
+      <div class="sensor-line">상태: <span id="sensorState">꺼짐</span> · <span id="sensorMode">이상적 센서</span></div>
+      <div class="sensor-line" id="sensorRanges"></div>
       <div class="sensor-line" id="sensorTarget">경로 안 감지 물체 없음</div>
       <!-- 실제 장애물 기준 표 (휴대폰에서 넘치면 표만 가로 스크롤) -->
       <div class="sensor-table-wrap">
@@ -732,7 +888,8 @@
       DEFAULT_RADAR_FAR_RANGE_M, DEFAULT_RADAR_FAR_HALF_DEG, DEFAULT_RADAR_NEAR_RANGE_M,
       DEFAULT_RADAR_NEAR_HALF_DEG, DEFAULT_SAFETY_MARGIN_M, DEFAULT_LIDAR_RANGE_M, DEFAULT_LIDAR_RES_DEG,
       DEFAULT_CAMERA_RANGE_M, DEFAULT_CAMERA_HALF_DEG, ROAD_LENGTH_M, ROAD_WIDTH_M, MY_LANE_Y_M, CAR_LENGTH_M,
-      CAR_WIDTH_M, CAR_HEIGHT_M, PED_SIZE_M, PED_HEIGHT_M, PED_WALK_SPEED_MS, MAX_OBSTACLES, car, obstacles,
+      CAR_WIDTH_M, CAR_HEIGHT_M, PED_SIZE_M, PED_HEIGHT_M, PED_WALK_SPEED_MS, MAX_OBSTACLES, ROADSIDE_LIMIT_M, DEFAULT_RADAR_PERIOD_MS, DEFAULT_LIDAR_PERIOD_MS,
+      DEFAULT_CAMERA_PERIOD_MS, DEFAULT_CONFIRM_COUNT, DEFAULT_TRACK_MEMORY_S, REAL_SENSOR_VALUES, DEFAULT_SENSOR_FACTORS, car, obstacles,
       brakeStats, radar, lidar, camera, msToKmh, computeForces, pathInfo, rayHitRect, scanLidar, detectAll,
       findDetection, detectedByChecked, nearestCandidate, requiredStopM
     } = sim;
@@ -751,6 +908,9 @@
     const LIDAR_RANGE_MIN = 10, LIDAR_RANGE_MAX = 300;  // 라이다 감지 거리(m)
     const LIDAR_RES_MIN = 0.1, LIDAR_RES_MAX = 2;       // 라이다 광선 간격(°)
     const CAM_RANGE_MIN = 10, CAM_RANGE_MAX = 500;      // 카메라 감지 거리(m)
+    const PERIOD_MIN = 0, PERIOD_MAX = 1000;            // 센서 측정 주기(ms)
+    const CONFIRM_MIN = 1, CONFIRM_MAX = 10;            // 연속 확인 횟수 (정수만)
+    const MEMORY_MIN = 0, MEMORY_MAX = 5;               // 추적 기억 시간(초)
 
     // 화면
     const MIN_PED_DRAW_PX = 6;   // 보행자 그림 최소 크기(픽셀)
@@ -806,11 +966,20 @@
       return canvas.height / 2 + yM * pixelsPerMeter();
     }
 
+    // 날씨별 도로 색과 차선 색 (그림만, 계산과 무관)
+    const ROAD_COLORS = {
+      clear: { road: "#555", line: "#fff" },
+      rain: { road: "#3a4048", line: "#fff" },
+      snow: { road: "#eef2f5", line: "#8a96a0" },
+      ice: { road: "#bcdcec", line: "#5f7f93" }
+    };
+
     // 도로 그리기
     function drawRoad(camLeft) {
       const top = toScreenY(-ROAD_WIDTH_M / 2);    // 도로 위 가장자리
       const bottom = toScreenY(ROAD_WIDTH_M / 2);  // 도로 아래 가장자리
-      ctx.fillStyle = "#555";
+      const colors = ROAD_COLORS[sim.weatherMode()] || ROAD_COLORS.clear; // 사용자 설정은 맑음과 같은 색
+      ctx.fillStyle = colors.road;
       ctx.fillRect(0, top, canvas.width, bottom - top);
 
       // 차선 굵기: 실제 0.15m(예시값)를 배율로 바꾼 값, 최소 1px 최대 4px
@@ -818,7 +987,7 @@
       const lineW = Math.max(1, Math.min(4, 0.15 * ppm));
 
       // 위·아래 가장자리 흰 실선
-      ctx.strokeStyle = "#fff";
+      ctx.strokeStyle = colors.line;
       ctx.lineWidth = lineW;
       ctx.beginPath();
       ctx.moveTo(0, top);
@@ -910,6 +1079,12 @@
     // "감지" = 자동 정지에 체크된 센서 중 하나라도 감지
     function borderColor(ob, det) {
       if (ob.hit) return "#e00";
+      // 이상적 센서가 아니면 추적 기록(확인됨·기억 중) 기준
+      if (!sim.isIdealSensors()) {
+        const state = sim.trackPathState(ob);
+        if (state === null) return null;
+        return state === "안" ? "#ff7a00" : "#ffd400";
+      }
       if (!detectedByChecked(det, ob)) return null;
       return pathInfo(ob).inPath ? "#ff7a00" : "#ffd400";
     }
@@ -1000,6 +1175,10 @@
       }
     }
 
+    // 화면에 보이는 노면·날씨 이름
+    const ROAD_NAMES = { clear: "마른", rain: "젖은", snow: "눈길", ice: "빙판", custom: "사용자 설정" };
+    const SKY_NAMES = { clear: "맑음", rain: "비", snow: "눈", fog: "안개" };
+
     // 현재 속도, 목표 속도 글자 그리기
     function drawSpeed() {
       const currentKmh = Math.round(msToKmh(car.speedMs));
@@ -1010,6 +1189,8 @@
       ctx.textAlign = "left";
       drawTextWithBg(currentText, 15, 35, "#000");
       drawTextWithBg("목표 속도: " + car.targetSpeedKmh + " km/h", 15, 65, "#000");
+      drawTextWithBg("날씨: " + SKY_NAMES[sim.skyMode()] + " · 노면: " + ROAD_NAMES[sim.weatherMode()] +
+                     " (μ " + formatValue(sim.ROAD_MU, 1) + ")", 15, 95, "#000");
 
       // 오른쪽 위: 적용 중인 값과 현재 가속도
       ctx.textAlign = "right";
@@ -1064,6 +1245,11 @@
       const obstaclesEnlarged = drawObstacles(camLeft, det);
       if (showCamera) drawCameraLabels(det.camera, camLeft);
       const carEnlarged = drawCar(camLeft);
+      // 안개: 그림판 전체에 회색 막 (그림만, 계산과 무관)
+      if (sim.skyMode() === "fog") {
+        ctx.fillStyle = "rgba(200,200,200,0.35)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
       drawSpeed();          // 글씨는 줌과 상관없이 같은 크기(픽셀)로 그림
       drawAutoBrakeText();
       drawZoomInfo(carEnlarged || obstaclesEnlarged);
@@ -1071,6 +1257,28 @@
       showBrakeStats();
       showForces();
       showSensor(det);
+      showWeather();
+    }
+
+    // 날씨 버튼 표시를 지금 μ에 맞추기 (설정 화면에서 μ를 바꿔도 맞게)
+    function showWeather() {
+      const mode = sim.weatherMode();
+      document.querySelectorAll(".weather-row button").forEach(function (b) {
+        b.classList.toggle("on", b.dataset.weather === mode);
+      });
+      // [사용자 설정]: 기억한 μ가 없으면 비활성, 있으면 그 값을 보여줌
+      const customButton = document.getElementById("weatherCustomBtn");
+      customButton.disabled = sim.customMu === null;
+      customButton.textContent = sim.customMu === null ? "사용자 설정" : "사용자 설정 (μ " + formatValue(sim.customMu, 1) + ")";
+
+      // 날씨 버튼과 감지 거리 줄
+      document.querySelectorAll(".sky-row button").forEach(function (b) {
+        b.classList.toggle("on", b.dataset.sky === sim.skyMode());
+      });
+      const zones = radar.zones;
+      document.getElementById("sensorRanges").textContent = "감지 거리(날씨 반영): 레이더 " +
+        Math.round(zones[0].rangeM) + "/" + Math.round(zones[1].rangeM) + " m · 라이다 " +
+        Math.round(sim.effectiveLidarRangeM()) + " m · 카메라 " + Math.round(camera.zones[0].rangeM) + " m";
     }
 
     // 부채꼴 센서(레이더·카메라)의 감지 영역 그리기 (색은 영역마다 정해 둔 값)
@@ -1103,7 +1311,7 @@
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.arc(x, y, sim.LIDAR_RANGE_M * ppm, 0, Math.PI * 2);
+      ctx.arc(x, y, sim.effectiveLidarRangeM() * ppm, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
 
@@ -1138,7 +1346,7 @@
       for (let i = 0; i < rayCount; i++) {
         const rad = i * sim.LIDAR_RES_DEG * Math.PI / 180;
         const dirX = Math.cos(rad), dirY = Math.sin(rad);
-        let endT = sim.LIDAR_RANGE_M;
+        let endT = sim.effectiveLidarRangeM();
         for (const ob of obstacles) {
           const t = rayHitRect(ox, oy, dirX, dirY,
             ob.xM - ob.lengthM / 2, ob.xM + ob.lengthM / 2, ob.yM - ob.widthM / 2, ob.yM + ob.widthM / 2);
@@ -1162,12 +1370,21 @@
       }
     }
 
-    // 자동 제동 중이면 그림판 위쪽 가운데에 주황 글씨
+    // 자동 제동 중이면 그림판 오른쪽 끝, 현재 가속도 줄 아래에 주황 글씨
     function drawAutoBrakeText() {
       if (!sim.autoBraking) return;
       ctx.font = "bold 22px sans-serif";
-      ctx.textAlign = "center";
-      drawTextWithBg("자동 제동 중", canvas.width / 2, 100, "#e07000");
+      ctx.textAlign = "right";
+      drawTextWithBg("자동 제동 중", canvas.width - 15, 95, "#e07000");
+    }
+
+    // 추적 기록을 표 칸 글자로: ○ 값(확인됨) / 확인 중 2/3 / 기억 0.3초(남은 기억 시간) / ×
+    function trackText(rec, valueOf) {
+      if (!rec) return "×";
+      if (rec.state === "확인됨") return "○ " + valueOf(rec.last);
+      if (rec.state === "확인 중") return "확인 중 " + rec.hits + "/" + sim.CONFIRM_COUNT;
+      const leftS = Math.max(0, sim.TRACK_MEMORY_S - (sim.simTimeS - rec.seenAtS));
+      return "기억 " + leftS.toFixed(1) + "초";
     }
 
     // 센서 칸에 상태, 가장 가까운 후보, 실제 장애물 기준 표 보여주기
@@ -1177,8 +1394,12 @@
       state.textContent = !sim.aebEnabled ? "꺼짐" : sim.autoBraking ? "자동 제동 중" :
         noSensor ? "감시 중 (선택된 센서 없음)" : "감시 중";
       state.classList.toggle("warn", sim.autoBraking);
+      const modeNames = { ideal: "이상적 센서", real: "현실 센서", custom: "사용자 설정" };
+      document.getElementById("sensorMode").textContent = modeNames[sim.sensorMode()];
 
-      const target = nearestCandidate(det);
+      // 이상적 센서는 날 감지 결과, 그 밖에는 추적 기록 기준
+      const ideal = sim.isIdealSensors();
+      const target = ideal ? nearestCandidate(det) : sim.nearestTrackCandidate();
       let targetText = "경로 안 감지 물체 없음";
       if (target !== null) {
         // TTC(충돌까지 남은 시간) = 남은 거리 ÷ 현재 속도. 거의 멈춰 있으면 "-"
@@ -1196,10 +1417,16 @@
         const l = findDetection(det.lidar, ob);
         const c = findDetection(det.camera, ob);
         const info = pathInfo(ob);
+        const radarText = ideal ? (r ? "○ " + r.closingMs.toFixed(1) : "×") :
+          trackText(sim.tracks.radar.get(ob), function (last) { return last.closingMs.toFixed(1); });
+        const lidarText = ideal ? (l ? "○ " + l.rays : "×") :
+          trackText(sim.tracks.lidar.get(ob), function (last) { return last.rays; });
+        const cameraText = ideal ? (c ? "○ " + c.kind : "×") :
+          trackText(sim.tracks.camera.get(ob), function (last) { return last.kind; });
         rows += "<tr><td>" + (i + 1) + "</td><td>" + (ob.kind === "car" ? "차" : "보행자") +
-          "</td><td>" + (r ? "○ " + r.closingMs.toFixed(1) : "×") +
-          "</td><td>" + (l ? "○ " + l.rays : "×") +
-          "</td><td>" + (c ? "○ " + c.kind : "×") +
+          "</td><td>" + radarText +
+          "</td><td>" + lidarText +
+          "</td><td>" + cameraText +
           "</td><td>" + info.gapM.toFixed(1) +
           "</td><td>" + (info.inPath ? "안" : "밖") + "</td></tr>";
       });
@@ -1443,7 +1670,10 @@
         function (v) { sim.ROLLING_CRR = v; }),
       setupInput("muInput", "muOk", "muError", MU_MIN, MU_MAX, false, 1,
         function () { return sim.ROAD_MU; },
-        function (v) { sim.ROAD_MU = v; }),
+        function (v) {
+          sim.ROAD_MU = v;
+          if (sim.weatherMode() === "custom") sim.customMu = v; // 날씨 표에 없는 값이면 기억해 둠
+        }),
       // 센서(레이더)
       setupInput("farRangeInput", "farRangeOk", "farRangeError", RANGE_MIN, RANGE_MAX, false, 0,
         function () { return sim.RADAR_FAR_RANGE_M; },
@@ -1473,8 +1703,43 @@
         function (v) { sim.CAMERA_RANGE_M = v; }),
       setupInput("camDegInput", "camDegOk", "camDegError", DEG_MIN, DEG_MAX, false, 0,
         function () { return sim.CAMERA_HALF_DEG; },
-        function (v) { sim.CAMERA_HALF_DEG = v; })
+        function (v) { sim.CAMERA_HALF_DEG = v; }),
+      // 센서 반응
+      setupInput("radarPeriodInput", "radarPeriodOk", "radarPeriodError", PERIOD_MIN, PERIOD_MAX, false, 0,
+        function () { return sim.RADAR_PERIOD_MS; },
+        function (v) { sim.RADAR_PERIOD_MS = v; }),
+      setupInput("lidarPeriodInput", "lidarPeriodOk", "lidarPeriodError", PERIOD_MIN, PERIOD_MAX, false, 0,
+        function () { return sim.LIDAR_PERIOD_MS; },
+        function (v) { sim.LIDAR_PERIOD_MS = v; }),
+      setupInput("cameraPeriodInput", "cameraPeriodOk", "cameraPeriodError", PERIOD_MIN, PERIOD_MAX, false, 0,
+        function () { return sim.CAMERA_PERIOD_MS; },
+        function (v) { sim.CAMERA_PERIOD_MS = v; }),
+      setupInput("confirmInput", "confirmOk", "confirmError", CONFIRM_MIN, CONFIRM_MAX, true, 0,
+        function () { return sim.CONFIRM_COUNT; },
+        function (v) { sim.CONFIRM_COUNT = v; }),
+      setupInput("memoryInput", "memoryOk", "memoryError", MEMORY_MIN, MEMORY_MAX, false, 1,
+        function () { return sim.TRACK_MEMORY_S; },
+        function (v) { sim.TRACK_MEMORY_S = v; })
     ];
+
+    // 날씨별 센서 감지 거리 비율 9줄: 줄을 만들고 기존 입력칸과 같은 방식으로 연결
+    const FACTOR_MIN = 0, FACTOR_MAX = 1;
+    const FACTOR_SKIES = { rain: "비", snow: "눈", fog: "안개" };
+    const FACTOR_SENSORS = { radar: "레이더", lidar: "라이다", camera: "카메라" };
+    for (const sky in FACTOR_SKIES) {
+      for (const name in FACTOR_SENSORS) {
+        const id = "factor_" + sky + "_" + name;
+        document.getElementById("factorRows").insertAdjacentHTML("beforeend",
+          '<div class="setting-row"><label for="' + id + 'Input">' + FACTOR_SKIES[sky] + " · " + FACTOR_SENSORS[name] + '</label>' +
+          '<div class="setting-controls"><input type="text" id="' + id + 'Input" inputmode="decimal">' +
+          '<span class="unit"></span><button id="' + id + 'Ok">확인</button></div>' +
+          '<span class="error" id="' + id + 'Error"></span></div>');
+        const key = "FACTOR_" + sky.toUpperCase() + "_" + name.toUpperCase();
+        settingClears.push(setupInput(id + "Input", id + "Ok", id + "Error", FACTOR_MIN, FACTOR_MAX, false, 1,
+          function () { return sim[key]; },
+          function (v) { sim[key] = v; }));
+      }
+    }
 
     // 슬라이더를 움직이면 목표 속도와 입력칸 숫자를 바꾸기 (현재 속도는 서서히 따라감)
     slider.value = car.targetSpeedKmh;
@@ -1551,11 +1816,63 @@
     // [지우기]: 장애물 모두 없애고 충돌 상태도 풀기
     document.getElementById("obClearBtn").addEventListener("click", function () {
       obstacles.length = 0;
+      sim.clearTracks();    // 추적 기록과 측정 타이머도 비우기
       sim.collided = false;
       sim.autoBraking = false;  // 자동 제동도 풀기
       checkBrakeChange();
       showObstacleMessage("", "");
       draw();
+    });
+
+    // ===== 클릭으로 놓기 =====
+    let clickMode = "off"; // "off" / "car" / "pedStand" / "pedCross"
+    const clickModeButtons = document.querySelectorAll(".click-mode button");
+
+    // 클릭 모드 버튼: 한 번에 하나만 켜짐, 켜져 있으면 그림판 커서를 십자로
+    clickModeButtons.forEach(function (modeButton) {
+      modeButton.addEventListener("click", function () {
+        clickMode = modeButton.dataset.mode;
+        clickModeButtons.forEach(function (b) { b.classList.toggle("on", b === modeButton); });
+        canvas.style.cursor = clickMode === "off" ? "" : "crosshair";
+      });
+    });
+
+    // 그림판 클릭 → 그 자리에 장애물 놓기 (달리는 중에도 멈추지 않음)
+    canvas.addEventListener("click", function (event) {
+      if (clickMode === "off") return;
+
+      // 클릭 위치 → 그림판 픽셀. 화면에 보이는 크기와 실제 크기(800×360)가 다를 수 있어서 비율로 바꿈
+      // (clientLeft/clientTop = 테두리 두께, clientWidth/clientHeight = 테두리를 뺀 안쪽 크기)
+      const rect = canvas.getBoundingClientRect();
+      const px = (event.clientX - rect.left - canvas.clientLeft) * canvas.width / canvas.clientWidth;
+      const py = (event.clientY - rect.top - canvas.clientTop) * canvas.height / canvas.clientHeight;
+
+      // 픽셀 → 미터 (toScreenX, toScreenY를 거꾸로)
+      const xM = cameraLeftM() + px / pixelsPerMeter();
+      const yM = (py - canvas.height / 2) / pixelsPerMeter();
+
+      let result;
+      if (clickMode === "car") {
+        result = sim.placeObstacleAt("car", CAR_LENGTH_M, CAR_WIDTH_M, CAR_HEIGHT_M, xM, yM, 0);
+      } else if (clickMode === "pedStand") {
+        result = sim.placeObstacleAt("ped", PED_SIZE_M, PED_SIZE_M, PED_HEIGHT_M, xM, yM, 0);
+      } else {
+        // 건너오는 보행자: 가운데 선 아래를 클릭하면 위로, 위를 클릭하면 아래로 걸음
+        result = sim.placeObstacleAt("ped", PED_SIZE_M, PED_SIZE_M, PED_HEIGHT_M, xM, yM, sim.pedCrossVy(yM));
+      }
+
+      if (result === null) {
+        if (!sim.collided) showObstacleMessage("장애물 " + obstacles.length + "개", ""); // 충돌 상태면 충돌 문구 유지
+        if (!running) draw(); // 달리는 중이면 다음 프레임에 그려짐
+      } else if (result === "max") {
+        showObstacleMessage("장애물은 최대 " + MAX_OBSTACLES + "개까지 놓을 수 있습니다", "error");
+      } else if (result === "roadEnd") {
+        showObstacleMessage("도로 끝(" + ROAD_LENGTH_M + " m)을 넘어서 놓을 수 없습니다", "error");
+      } else if (result === "offRoad") {
+        showObstacleMessage("도로 근처(가장자리에서 " + ROADSIDE_LIMIT_M + " m)에만 놓을 수 있습니다", "error");
+      } else if (result === "overlapCar") {
+        showObstacleMessage("내 차와 겹쳐서 놓을 수 없습니다", "error");
+      }
     });
 
     // [자동 정지: 꺼짐/켜짐] 버튼
@@ -1622,6 +1939,7 @@
       sim.FRONTAL_AREA_M2 = DEFAULT_FRONTAL_AREA_M2;
       sim.ROLLING_CRR = DEFAULT_ROLLING_CRR;
       sim.ROAD_MU = DEFAULT_ROAD_MU;
+      sim.customMu = null; // 기억한 사용자 μ도 지움 ([사용자 설정] 비활성)
       sim.RADAR_FAR_RANGE_M = DEFAULT_RADAR_FAR_RANGE_M;
       sim.RADAR_FAR_HALF_DEG = DEFAULT_RADAR_FAR_HALF_DEG;
       sim.RADAR_NEAR_RANGE_M = DEFAULT_RADAR_NEAR_RANGE_M;
@@ -1631,12 +1949,62 @@
       sim.LIDAR_RES_DEG = DEFAULT_LIDAR_RES_DEG;
       sim.CAMERA_RANGE_M = DEFAULT_CAMERA_RANGE_M;
       sim.CAMERA_HALF_DEG = DEFAULT_CAMERA_HALF_DEG;
+      sim.RADAR_PERIOD_MS = DEFAULT_RADAR_PERIOD_MS;
+      sim.LIDAR_PERIOD_MS = DEFAULT_LIDAR_PERIOD_MS;
+      sim.CAMERA_PERIOD_MS = DEFAULT_CAMERA_PERIOD_MS;
+      sim.CONFIRM_COUNT = DEFAULT_CONFIRM_COUNT;
+      sim.TRACK_MEMORY_S = DEFAULT_TRACK_MEMORY_S;
+      // 날씨별 센서 비율 9개와 날씨도 기본값으로
+      for (const sky in FACTOR_SKIES) {
+        for (const name in FACTOR_SENSORS) {
+          sim["FACTOR_" + sky.toUpperCase() + "_" + name.toUpperCase()] = DEFAULT_SENSOR_FACTORS[sky][name];
+        }
+      }
+      sim.applySky("clear");
       settingClears.forEach(function (clear) { clear(); }); // 입력칸 숫자·노란 테두리·안내 문구 정리
 
       // 버튼 아래 안내를 2초 동안 보여주고 지우기
       clearTimeout(resetNoticeTimer);
       resetNotice.textContent = "기본값으로 되돌렸습니다";
       resetNoticeTimer = setTimeout(function () { resetNotice.textContent = ""; }, 2000);
+    });
+
+    // 날씨 버튼: 노면 μ를 바꾸고 설정 화면 입력칸도 맞춤. 달리는 중에도 바로 적용
+    document.querySelectorAll(".weather-row button").forEach(function (weatherButton) {
+      weatherButton.addEventListener("click", function () {
+        if (weatherButton.dataset.weather === "custom") sim.applyCustomWeather();
+        else sim.applyWeather(weatherButton.dataset.weather);
+        settingClears.forEach(function (clear) { clear(); });
+        draw();
+      });
+    });
+
+    // 날씨 버튼: 센서 감지 거리만 바뀜 (노면 μ는 그대로). 달리는 중에도 바로 적용
+    document.querySelectorAll(".sky-row button").forEach(function (skyButton) {
+      skyButton.addEventListener("click", function () {
+        sim.applySky(skyButton.dataset.sky);
+        draw();
+      });
+    });
+
+    // 설정 화면: [이상적 센서] [현실 센서] → 센서 반응 5개 값을 한 번에 채우고 바로 적용
+    function applySensorValues(values) {
+      sim.RADAR_PERIOD_MS = values.RADAR_PERIOD_MS;
+      sim.LIDAR_PERIOD_MS = values.LIDAR_PERIOD_MS;
+      sim.CAMERA_PERIOD_MS = values.CAMERA_PERIOD_MS;
+      sim.CONFIRM_COUNT = values.CONFIRM_COUNT;
+      sim.TRACK_MEMORY_S = values.TRACK_MEMORY_S;
+      settingClears.forEach(function (clear) { clear(); }); // 입력칸 숫자·노란 테두리·안내 문구 정리
+    }
+    document.getElementById("idealSensorBtn").addEventListener("click", function () {
+      applySensorValues({
+        RADAR_PERIOD_MS: DEFAULT_RADAR_PERIOD_MS, LIDAR_PERIOD_MS: DEFAULT_LIDAR_PERIOD_MS,
+        CAMERA_PERIOD_MS: DEFAULT_CAMERA_PERIOD_MS, CONFIRM_COUNT: DEFAULT_CONFIRM_COUNT,
+        TRACK_MEMORY_S: DEFAULT_TRACK_MEMORY_S
+      });
+    });
+    document.getElementById("realSensorBtn").addEventListener("click", function () {
+      applySensorValues(REAL_SENSOR_VALUES);
     });
 
     // 설정 화면: [돌아가기] → 확인 안 누른 입력칸은 적용 중인 값으로 되돌리고 시작 화면으로

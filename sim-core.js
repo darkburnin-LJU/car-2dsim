@@ -32,6 +32,35 @@
     let ROLLING_CRR = DEFAULT_ROLLING_CRR;
     let ROAD_MU = DEFAULT_ROAD_MU;
 
+    // 날씨별 노면 마찰계수. 모두 일반(여름) 타이어 기준
+    const WEATHER_PRESETS = {
+      clear: { name: "맑음", mu: 0.8 },   // 마른 아스팔트 (8단계 기본값과 같음)
+      rain:  { name: "비",   mu: 0.5 },   // 젖은 아스팔트: 학술지 표 0.4~0.5, 최대값 자료 0.50~0.70
+      snow:  { name: "눈",   mu: 0.25 },  // 룬드대(VTI 측정) 자료 여름 타이어 0.26 (겨울 타이어 0.40)
+      ice:   { name: "결빙", mu: 0.08 }   // 같은 자료 여름 타이어 0.077, SAE 960959 빙판 대표값 0.10
+    };
+    let customMu = null;  // 사용자가 직접 입력한 μ(날씨 표에 없는 값)를 기억. 없으면 null
+
+    // 날씨별 센서 감지 거리 비율 기본값 (1.0 = 설정한 감지 거리 그대로)
+    const DEFAULT_SENSOR_FACTORS = {
+      clear: { radar: 1.0, lidar: 1.0, camera: 1.0 },
+      // 레이더: 심한 비 최대 45% 감소 시뮬레이션(Zang 외) → 보통 비로 줄여 잡음. 라이다·카메라: 예시값
+      rain:  { radar: 0.9, lidar: 0.6, camera: 0.6 },
+      // 라이다: "영향 없음"(ASME)과 "감소"(TechWorks) 자료가 엇갈려 중간값. 레이더·카메라: 예시값
+      snow:  { radar: 0.9, lidar: 0.8, camera: 0.5 },
+      // 레이더는 안개에 강함. 라이다 30m는 한국건설기술연구원 실험(짙은 안개에서 금속 20~30m 감지 안 됨)과
+      // 비슷한 수준. 카메라: 예시값
+      fog:   { radar: 1.0, lidar: 0.3, camera: 0.2 }
+    };
+    // 지금 값 (맑음은 항상 1.0이라 바꾸는 통로가 없음)
+    const sensorFactors = {
+      clear: Object.assign({}, DEFAULT_SENSOR_FACTORS.clear),
+      rain: Object.assign({}, DEFAULT_SENSOR_FACTORS.rain),
+      snow: Object.assign({}, DEFAULT_SENSOR_FACTORS.snow),
+      fog: Object.assign({}, DEFAULT_SENSOR_FACTORS.fog)
+    };
+    let skyWeather = "clear";  // 지금 날씨: "clear" / "rain" / "snow" / "fog" (노면 μ와는 따로)
+
     // 레이더 기본값 (설정 화면에서 바꿀 수 있음)
     // Continental(Aumovio) ARS 408-21 데이터시트(원거리 250m ±9°, 근거리 70m ±45°)를 단순화한 값
     const DEFAULT_RADAR_FAR_RANGE_M = 250;   // 원거리 감지 거리(m)
@@ -57,6 +86,27 @@
     let CAMERA_RANGE_M = DEFAULT_CAMERA_RANGE_M;
     let CAMERA_HALF_DEG = DEFAULT_CAMERA_HALF_DEG;
 
+    // 센서 반응 기본값 = 이상적 센서 (매 계산마다 측정, 바로 확인, 기억 없음)
+    const DEFAULT_RADAR_PERIOD_MS = 0;   // 레이더 측정 주기(ms). 0 = 매 계산마다
+    const DEFAULT_LIDAR_PERIOD_MS = 0;   // 라이다 측정 주기(ms)
+    const DEFAULT_CAMERA_PERIOD_MS = 0;  // 카메라 측정 주기(ms)
+    const DEFAULT_CONFIRM_COUNT = 1;     // 연속 몇 번 감지해야 "확인됨"인지
+    const DEFAULT_TRACK_MEMORY_S = 0;    // 놓친 뒤 몇 초 동안 기억할지(초)
+    let RADAR_PERIOD_MS = DEFAULT_RADAR_PERIOD_MS;
+    let LIDAR_PERIOD_MS = DEFAULT_LIDAR_PERIOD_MS;
+    let CAMERA_PERIOD_MS = DEFAULT_CAMERA_PERIOD_MS;
+    let CONFIRM_COUNT = DEFAULT_CONFIRM_COUNT;
+    let TRACK_MEMORY_S = DEFAULT_TRACK_MEMORY_S;
+
+    // 현실 센서 값 (설정 화면의 [현실 센서] 버튼)
+    const REAL_SENSOR_VALUES = {
+      RADAR_PERIOD_MS: 60,   // ARS 408-21 데이터시트 측정 주기 약 60ms
+      LIDAR_PERIOD_MS: 100,  // VLP-16 회전 5~20Hz 중 10Hz(예시)
+      CAMERA_PERIOD_MS: 33,  // Bosch 카메라 헤드 30 FPS(차량용 수치는 확인 못 함, 예시)
+      CONFIRM_COUNT: 3,      // 예시값(공개 자료 없음)
+      TRACK_MEMORY_S: 0.5    // 예시값(공개 자료 없음)
+    };
+
     // 바꿀 수 없는 상수
     const AIR_DENSITY = 1.225; // 공기 밀도 kg/m³ (국제표준대기, 해수면 15°C)
     const GRAVITY = 9.81;      // 중력가속도 m/s²
@@ -74,6 +124,7 @@
     const PED_HEIGHT_M = 1.7;    // 보행자 키(m), 제8차 한국인 인체치수조사 남성 평균 172.5cm 반올림
     const PED_WALK_SPEED_MS = 1.0; // 보행 속도(m/s), 경찰청 교통신호기 업무편람(2022) 횡단보행속도
     const MAX_OBSTACLES = 10;    // 장애물 최대 개수
+    const ROADSIDE_LIMIT_M = 3;  // 도로 가장자리에서 이만큼 밖까지만 장애물을 놓을 수 있음(m)
 
     // km/h ↔ m/s 바꾸기 (1 m/s = 3.6 km/h)
     function kmhToMs(kmh) {
@@ -138,9 +189,9 @@
       // 감지 영역: 설정 화면의 지금 값을 읽어서 씀
       get zones() {
         return [
-          { name: "원거리", rangeM: RADAR_FAR_RANGE_M, halfAngleDeg: RADAR_FAR_HALF_DEG,
+          { name: "원거리", rangeM: RADAR_FAR_RANGE_M * sensorFactor("radar"), halfAngleDeg: RADAR_FAR_HALF_DEG,
             fill: "rgba(80,160,255,0.22)", line: "rgba(80,160,255,0.9)" },
-          { name: "근거리", rangeM: RADAR_NEAR_RANGE_M, halfAngleDeg: RADAR_NEAR_HALF_DEG,
+          { name: "근거리", rangeM: RADAR_NEAR_RANGE_M * sensorFactor("radar"), halfAngleDeg: RADAR_NEAR_HALF_DEG,
             fill: "rgba(80,200,120,0.22)", line: "rgba(80,200,120,0.9)" }
         ];
       }
@@ -162,7 +213,7 @@
       color: "rgb(255,150,50)",
       get zones() {
         return [
-          { name: "카메라", rangeM: CAMERA_RANGE_M, halfAngleDeg: CAMERA_HALF_DEG,
+          { name: "카메라", rangeM: CAMERA_RANGE_M * sensorFactor("camera"), halfAngleDeg: CAMERA_HALF_DEG,
             fill: "rgba(255,150,50,0.18)", line: "rgba(255,150,50,0.9)" }
         ];
       }
@@ -233,6 +284,24 @@
       return tEnter;
     }
 
+    // 지금 날씨 키, 날씨 바꾸기 (노면 μ는 건드리지 않음)
+    function skyMode() {
+      return skyWeather;
+    }
+    function applySky(key) {
+      skyWeather = key;
+    }
+
+    // 지금 날씨의 센서 감지 거리 비율 ("radar" / "lidar" / "camera")
+    function sensorFactor(name) {
+      return sensorFactors[skyWeather][name];
+    }
+
+    // 날씨를 반영한 라이다 감지 거리(m)
+    function effectiveLidarRangeM() {
+      return LIDAR_RANGE_M * sensorFactor("lidar");
+    }
+
     // 라이다: 0°~360°를 LIDAR_RES_DEG 간격 광선으로 훑음
     // 광선은 처음 닿은 장애물에서 끝남 → 뒤 물체는 못 봄(가려짐). 내 차는 장애물 목록에 없어서 자동으로 제외
     // 돌려주는 값: 감지 목록(장애물별 닿은 광선 수·가장 가까운 닿은 점 거리·각도), 그림용 닿은 점 목록
@@ -241,6 +310,7 @@
       const rayCount = Math.floor(360 / LIDAR_RES_DEG + 1e-9); // 기본 0.4° → 900개
       const byObstacle = new Map();
       const hitPoints = [];
+      const rangeM = effectiveLidarRangeM(); // 날씨를 반영한 감지 거리
 
       // 속도 개선: 라이다 범위 안에 들어올 수 있는 장애물만 광선 계산에 넣음
       // 판단 기준은 장애물 가운데가 아니라 "직사각형에서 설치 위치와 가장 가까운 점"까지의 거리
@@ -249,7 +319,7 @@
       const inRange = obstacles.filter(function (ob) {
         const gapX = Math.max(ob.xM - ob.lengthM / 2 - ox, 0, ox - (ob.xM + ob.lengthM / 2)); // 가로로 떨어진 거리
         const gapY = Math.max(ob.yM - ob.widthM / 2 - oy, 0, oy - (ob.yM + ob.widthM / 2)); // 세로로 떨어진 거리
-        return Math.sqrt(gapX * gapX + gapY * gapY) <= LIDAR_RANGE_M;
+        return Math.sqrt(gapX * gapX + gapY * gapY) <= rangeM;
       });
       if (inRange.length === 0) return { list: [], hitPoints: hitPoints }; // 범위 안에 아무것도 없음
 
@@ -259,7 +329,7 @@
         const dirX = Math.cos(rad), dirY = Math.sin(rad);
 
         // 이 광선이 처음 닿는 장애물 찾기
-        let bestT = LIDAR_RANGE_M, bestOb = null;
+        let bestT = rangeM, bestOb = null;
         for (const ob of inRange) {
           const t = rayHitRect(ox, oy, dirX, dirY,
             ob.xM - ob.lengthM / 2, ob.xM + ob.lengthM / 2, ob.yM - ob.widthM / 2, ob.yM + ob.widthM / 2);
@@ -332,13 +402,160 @@
       return availDecel > 0 ? car.speedMs * car.speedMs / (2 * availDecel) : Infinity;
     }
 
-    // 자동 정지: 체크된 센서가 "감지한" 물체로만 판단 (감지 못 한 물체는 경로 안이어도 무시)
+    // ===== 추적 =====
+    // 센서별·장애물별 추적 기록 (Map: 장애물 → 기록). 처음 만든 것을 계속 쓰고, 지울 때는 비우기만 함
+    // 기록 = state("확인 중"/"확인됨"/"기억 중"), hits(연속 감지 횟수),
+    //        last(마지막 측정값: 거리·각도·접근 속도·종류·광선 수), gapM(마지막 남은 거리),
+    //        inPath(마지막 경로 안 여부), seenAtS·seenOdoM(마지막으로 본 시각과 그때의 누적 주행 거리)
+    const tracks = { radar: new Map(), lidar: new Map(), camera: new Map() };
+    const measureTimers = { radar: 0, lidar: 0, camera: 0 }; // 센서별 측정 타이머(초)
+    let simTimeS = 0;   // 시뮬레이션 시간(초)
+    let odometerM = 0;  // 누적 주행 거리(m). 도로 한 바퀴 돌아도 계속 늘어남
+
+    // 지금 ROAD_MU와 같은 mu를 가진 날씨 키. 어느 것과도 다르면 "custom"
+    function weatherMode() {
+      for (const key in WEATHER_PRESETS) {
+        if (WEATHER_PRESETS[key].mu === ROAD_MU) return key;
+      }
+      return "custom";
+    }
+
+    // 날씨 적용: 노면 마찰계수만 바꿈 (구름저항 등 다른 값은 그대로)
+    function applyWeather(key) {
+      ROAD_MU = WEATHER_PRESETS[key].mu;
+    }
+
+    // 기억해 둔 사용자 μ로 돌아가기. 기억한 값이 없으면 아무것도 안 하고 false
+    function applyCustomWeather() {
+      if (customMu === null) return false;
+      ROAD_MU = customMu;
+      return true;
+    }
+
+    // 지금 센서 반응 설정: "ideal"(이상적 센서) / "real"(현실 센서) / "custom"(사용자 설정)
+    function sensorMode() {
+      const now = [RADAR_PERIOD_MS, LIDAR_PERIOD_MS, CAMERA_PERIOD_MS, CONFIRM_COUNT, TRACK_MEMORY_S];
+      const ideal = [DEFAULT_RADAR_PERIOD_MS, DEFAULT_LIDAR_PERIOD_MS, DEFAULT_CAMERA_PERIOD_MS, DEFAULT_CONFIRM_COUNT, DEFAULT_TRACK_MEMORY_S];
+      const r = REAL_SENSOR_VALUES;
+      const real = [r.RADAR_PERIOD_MS, r.LIDAR_PERIOD_MS, r.CAMERA_PERIOD_MS, r.CONFIRM_COUNT, r.TRACK_MEMORY_S];
+      const same = function (list) { return list.every(function (v, i) { return v === now[i]; }); };
+      return same(ideal) ? "ideal" : same(real) ? "real" : "custom";
+    }
+    function isIdealSensors() {
+      return sensorMode() === "ideal";
+    }
+
+    // 이번 스텝에 이 센서가 측정할 차례인지. 주기 0 = 매 계산마다
+    // (소수 오차로 측정이 한 스텝 밀리지 않게 비교에 아주 작은 여유를 둠)
+    function timeToMeasure(name, periodMs, dt) {
+      if (periodMs === 0) return true;
+      const periodS = periodMs / 1000;
+      measureTimers[name] += dt;
+      if (measureTimers[name] < periodS - 1e-9) return false;
+      measureTimers[name] -= periodS;
+      return true;
+    }
+
+    // 측정 결과(감지 목록)를 추적 기록에 반영
+    function applyMeasurement(map, list) {
+      const seen = new Set();
+      for (const d of list) {
+        seen.add(d.obstacle);
+        let rec = map.get(d.obstacle);
+        if (!rec) {
+          rec = { state: "확인 중", hits: 0 };
+          map.set(d.obstacle, rec);
+        }
+        rec.hits++;
+        // 이미 확인됨/기억 중이었으면 바로 확인됨, 아니면 연속 횟수가 찼을 때 확인됨
+        if (rec.state !== "확인 중" || rec.hits >= CONFIRM_COUNT) rec.state = "확인됨";
+        rec.last = { distM: d.distM, angleDeg: d.angleDeg, closingMs: d.closingMs, kind: d.kind, rays: d.rays };
+        rec.gapM = d.gapM;
+        rec.inPath = d.inPath;
+        rec.seenAtS = simTimeS;
+        rec.seenOdoM = odometerM;
+      }
+      // 이번 측정에서 감지 안 된 기록
+      map.forEach(function (rec, ob) {
+        if (seen.has(ob)) return;
+        rec.hits = 0;
+        if (rec.state === "확인 중" || TRACK_MEMORY_S === 0) map.delete(ob); // 기억 0초면 바로 삭제
+        else rec.state = "기억 중";
+      });
+    }
+
+    // 센서마다 측정 차례면 측정하고, 오래된 기록을 지우기
+    function updateTracks(dt) {
+      if (timeToMeasure("radar", RADAR_PERIOD_MS, dt)) applyMeasurement(tracks.radar, detectObjects(radar));
+      if (timeToMeasure("lidar", LIDAR_PERIOD_MS, dt)) applyMeasurement(tracks.lidar, scanLidar(lidar).list);
+      if (timeToMeasure("camera", CAMERA_PERIOD_MS, dt)) applyMeasurement(tracks.camera, detectObjects(camera));
+
+      for (const name of ["radar", "lidar", "camera"]) {
+        tracks[name].forEach(function (rec, ob, map) {
+          if (!obstacles.includes(ob)) map.delete(ob); // 장애물이 없어짐
+          else if (rec.state === "기억 중" && simTimeS - rec.seenAtS > TRACK_MEMORY_S) map.delete(ob);
+        });
+      }
+    }
+
+    // 추적 기록과 측정 타이머 모두 비우기 (새로 만들지 않음)
+    function clearTracks() {
+      for (const name of ["radar", "lidar", "camera"]) {
+        tracks[name].clear();
+        measureTimers[name] = 0;
+      }
+    }
+
+    // 추적 기록의 지금 남은 거리 (물체가 멈춰 있다고 가정한 예측)
+    // 이상적 센서는 매 스텝 측정하므로 실제 남은 거리와 같음
+    function trackGapM(rec) {
+      return rec.gapM - (odometerM - rec.seenOdoM);
+    }
+
+    // 자동 정지에 체크된 센서의 추적 기록 목록 (확인 중은 뺌)
+    function checkedTracks() {
+      const maps = [];
+      if (aebUseRadar) maps.push(tracks.radar);
+      if (aebUseLidar) maps.push(tracks.lidar);
+      if (aebUseCamera) maps.push(tracks.camera);
+      const list = [];
+      for (const map of maps) {
+        map.forEach(function (rec, ob) {
+          if (rec.state !== "확인 중") list.push({ obstacle: ob, rec: rec });
+        });
+      }
+      return list;
+    }
+
+    // 자동 정지 후보(체크된 센서의 확인됨·기억 중 기록 + 경로 안) 중 지금 남은 거리가 가장 작은 것 (없으면 null)
+    function nearestTrackCandidate() {
+      let target = null;
+      for (const item of checkedTracks()) {
+        if (!item.rec.inPath) continue;
+        const gapM = trackGapM(item.rec);
+        if (target === null || gapM < target.gapM) target = { obstacle: item.obstacle, gapM: gapM };
+      }
+      return target;
+    }
+
+    // 이 장애물의 추적 상태 (테두리 색용): null = 후보 아님, "안" = 경로 안, "밖" = 경로 밖
+    function trackPathState(ob) {
+      let state = null;
+      for (const item of checkedTracks()) {
+        if (item.obstacle !== ob) continue;
+        if (item.rec.inPath) return "안";
+        state = "밖";
+      }
+      return state;
+    }
+
+    // 자동 정지: 체크된 센서의 추적 기록으로만 판단 (확인 못 한 물체는 경로 안이어도 무시)
     function updateAEB() {
       const before = autoBraking;
       if (!aebEnabled) {
         autoBraking = false;
       } else {
-        const target = nearestCandidate(detectAll());
+        const target = nearestTrackCandidate();
         if (!autoBraking && target !== null && target.gapM <= requiredStopM() + SAFETY_MARGIN_M) {
           autoBraking = true;   // 남은 거리가 필요 제동거리 + 안전 여유 이하 → 제동 시작
         } else if (autoBraking && car.speedMs === 0 && target === null) {
@@ -446,6 +663,15 @@
       const endYM = ROAD_WIDTH_M / 2 + PED_SIZE_M;
       for (const ob of obstacles) {
         if (ob.vyMs === 0) continue;
+        // 위로 걷는 보행자: 도로 위쪽 밖에 닿으면 그 자리에서 멈춤
+        if (ob.vyMs < 0) {
+          ob.yM += ob.vyMs * dt;
+          if (ob.yM <= -endYM) {
+            ob.yM = -endYM;
+            ob.vyMs = 0;
+          }
+          continue;
+        }
         ob.yM += ob.vyMs * dt;
         if (ob.yM >= endYM) {
           ob.yM = endYM;
@@ -501,10 +727,49 @@
       return null;
     }
 
+    // 클릭으로 놓는 건너오는 보행자의 옆 속도: 도로 가운데 선보다 아래면 위로, 아니면 아래로
+    function pedCrossVy(yM) {
+      return yM > 0 ? -PED_WALK_SPEED_MS : PED_WALK_SPEED_MS;
+    }
+
+    // 장애물 가운데를 (xM, yM)에 놓기 (그림판 클릭용)
+    // 놓았으면 null, 못 놓으면 이유("max" = 개수 초과, "roadEnd" = 도로 끝을 넘음,
+    // "offRoad" = 도로에서 너무 멂, "overlapCar" = 내 차와 겹침)
+    function placeObstacleAt(kind, lengthM, widthM, heightM, xM, yM, vyMs) {
+      if (obstacles.length >= MAX_OBSTACLES) return "max";
+      if (xM - lengthM / 2 < 0 || xM + lengthM / 2 > ROAD_LENGTH_M) return "roadEnd";
+      if (Math.abs(yM) > ROAD_WIDTH_M / 2 + ROADSIDE_LIMIT_M) return "offRoad";
+
+      // 내 차와 겹치는지 (checkCollision과 같은 기준: 경계에 딱 닿는 것은 겹침 아님)
+      const overlapX = car.xM < xM + lengthM / 2 && car.xM + CAR_LENGTH_M > xM - lengthM / 2;
+      const overlapY = MY_LANE_Y_M - CAR_WIDTH_M / 2 < yM + widthM / 2 && MY_LANE_Y_M + CAR_WIDTH_M / 2 > yM - widthM / 2;
+      if (overlapX && overlapY) return "overlapCar";
+
+      // 건너오는 보행자가 이미 멈추는 위치보다 아래에 놓이면 그 자리에 서 있게 함
+      // (그대로 두면 moveObstacles가 멈추는 위치로 끌어올림)
+      if (vyMs > 0 && yM >= ROAD_WIDTH_M / 2 + PED_SIZE_M) vyMs = 0;
+      // 위로 걷는 보행자도 마찬가지 (이미 위쪽 멈추는 위치보다 위에 놓이면 서 있게)
+      if (vyMs < 0 && yM <= -(ROAD_WIDTH_M / 2 + PED_SIZE_M)) vyMs = 0;
+
+      obstacles.push({
+        kind: kind,
+        xM: xM,
+        yM: yM,
+        lengthM: lengthM,
+        widthM: widthM,
+        heightM: heightM,         // 10단계(멀티뷰)용
+        vyMs: vyMs,
+        hit: false
+      });
+      return null;
+    }
+
     // 한 프레임 계산 (그리기 없음). 화면은 실제 경과 시간(최대 MAX_DT), 테스트는 고정 0.01초를 dt로 넣음
     // 순서: 속도 → 이동 → 제동거리 누적 → 보행자 이동 → 충돌 → 자동 정지
     // 충돌하면 true를 돌려주고 그 프레임에서 끝 (자동 정지 판단은 안 함)
     function stepSimulation(dt) {
+      simTimeS += dt;
+
       // 속도를 먼저 바꾸고, 그 속도로 차를 오른쪽으로 이동
       const speedBefore = car.speedMs;
       updateSpeed(dt);
@@ -513,6 +778,7 @@
       // 이번 프레임에 달린 거리(m) = 이전 속도와 새 속도의 평균 × 시간
       const stepM = (speedBefore + car.speedMs) / 2 * dt;
       car.xM += stepM;
+      odometerM += stepM;
       addBrakeDistance(stepM);
 
       // 도로 오른쪽 끝을 완전히 지나가면 다시 왼쪽 밖에서 시작
@@ -525,6 +791,11 @@
 
       // 충돌 검사: 부딪혔으면 일시정지하고 이 프레임에서 끝 (다음 프레임 요청 안 함)
       if (checkCollision()) return true;
+
+      // 추적 갱신. 이상적 센서 + 자동 정지 꺼짐이면 추적 기록이 필요 없어서 건너뛰고 비워 둠
+      // (화면은 이상적 센서일 때 날 감지 결과를 직접 씀. 자동 정지를 켜면 그 스텝에서 바로 측정·확인됨)
+      if (isIdealSensors() && !aebEnabled) clearTracks();
+      else updateTracks(dt);
 
       // 자동 정지 판단 (다음 프레임부터 브레이크에 반영)
       updateAEB();
@@ -541,13 +812,17 @@
       DEFAULT_RADAR_NEAR_HALF_DEG, DEFAULT_SAFETY_MARGIN_M, DEFAULT_LIDAR_RANGE_M, DEFAULT_LIDAR_RES_DEG,
       DEFAULT_CAMERA_RANGE_M, DEFAULT_CAMERA_HALF_DEG, AIR_DENSITY, GRAVITY, ROAD_LENGTH_M, LANE_WIDTH_M,
       LANE_COUNT, ROAD_WIDTH_M, MY_LANE_Y_M, CAR_LENGTH_M, CAR_WIDTH_M, CAR_HEIGHT_M, PED_SIZE_M,
-      PED_HEIGHT_M, PED_WALK_SPEED_MS, MAX_OBSTACLES,
+      PED_HEIGHT_M, PED_WALK_SPEED_MS, MAX_OBSTACLES, ROADSIDE_LIMIT_M,
+      DEFAULT_RADAR_PERIOD_MS, DEFAULT_LIDAR_PERIOD_MS, DEFAULT_CAMERA_PERIOD_MS, DEFAULT_CONFIRM_COUNT,
+      DEFAULT_TRACK_MEMORY_S, REAL_SENSOR_VALUES, WEATHER_PRESETS, DEFAULT_SENSOR_FACTORS,
       // 객체·배열: 처음 만든 것을 계속 씀 (비울 때도 obstacles.length = 0처럼 새로 만들지 않음)
-      car, obstacles, brakeStats, radar, lidar, camera, sensors,
+      car, obstacles, brakeStats, radar, lidar, camera, sensors, tracks, measureTimers,
       // 함수
       kmhToMs, msToKmh, isBrakeActive, computeForces, updateSpeed, checkBrakeChange, addBrakeDistance,
-      moveObstacles, checkCollision, placeObstacle, pathInfo, detectObjects, rayHitRect, scanLidar, detectAll,
-      findDetection, detectedByChecked, nearestCandidate, requiredStopM, updateAEB, stepSimulation
+      moveObstacles, checkCollision, placeObstacle, placeObstacleAt, pathInfo, detectObjects, rayHitRect, scanLidar, detectAll,
+      findDetection, detectedByChecked, nearestCandidate, requiredStopM, updateAEB, stepSimulation,
+      sensorMode, isIdealSensors, updateTracks, clearTracks, trackGapM, nearestTrackCandidate, trackPathState, pedCrossVy,
+      weatherMode, applyWeather, applyCustomWeather, skyMode, applySky, sensorFactor, effectiveLidarRangeM
     };
 
     // 바뀌는 값은 읽기·쓰기 통로(getter/setter)로 연결
@@ -563,6 +838,15 @@
     link("FRONTAL_AREA_M2", function () { return FRONTAL_AREA_M2; }, function (v) { FRONTAL_AREA_M2 = v; });
     link("ROLLING_CRR", function () { return ROLLING_CRR; }, function (v) { ROLLING_CRR = v; });
     link("ROAD_MU", function () { return ROAD_MU; }, function (v) { ROAD_MU = v; });
+    link("customMu", function () { return customMu; }, function (v) { customMu = v; });
+    // 날씨별 센서 비율 9개 (FACTOR_RAIN_RADAR, FACTOR_FOG_LIDAR 처럼). 맑음은 통로가 없음
+    for (const sky of ["rain", "snow", "fog"]) {
+      for (const name of ["radar", "lidar", "camera"]) {
+        link("FACTOR_" + sky.toUpperCase() + "_" + name.toUpperCase(),
+          function () { return sensorFactors[sky][name]; },
+          function (v) { sensorFactors[sky][name] = v; });
+      }
+    }
     link("RADAR_FAR_RANGE_M", function () { return RADAR_FAR_RANGE_M; }, function (v) { RADAR_FAR_RANGE_M = v; });
     link("RADAR_FAR_HALF_DEG", function () { return RADAR_FAR_HALF_DEG; }, function (v) { RADAR_FAR_HALF_DEG = v; });
     link("RADAR_NEAR_RANGE_M", function () { return RADAR_NEAR_RANGE_M; }, function (v) { RADAR_NEAR_RANGE_M = v; });
@@ -572,6 +856,13 @@
     link("LIDAR_RES_DEG", function () { return LIDAR_RES_DEG; }, function (v) { LIDAR_RES_DEG = v; });
     link("CAMERA_RANGE_M", function () { return CAMERA_RANGE_M; }, function (v) { CAMERA_RANGE_M = v; });
     link("CAMERA_HALF_DEG", function () { return CAMERA_HALF_DEG; }, function (v) { CAMERA_HALF_DEG = v; });
+    link("RADAR_PERIOD_MS", function () { return RADAR_PERIOD_MS; }, function (v) { RADAR_PERIOD_MS = v; });
+    link("LIDAR_PERIOD_MS", function () { return LIDAR_PERIOD_MS; }, function (v) { LIDAR_PERIOD_MS = v; });
+    link("CAMERA_PERIOD_MS", function () { return CAMERA_PERIOD_MS; }, function (v) { CAMERA_PERIOD_MS = v; });
+    link("CONFIRM_COUNT", function () { return CONFIRM_COUNT; }, function (v) { CONFIRM_COUNT = v; });
+    link("TRACK_MEMORY_S", function () { return TRACK_MEMORY_S; }, function (v) { TRACK_MEMORY_S = v; });
+    link("simTimeS", function () { return simTimeS; }, function (v) { simTimeS = v; });
+    link("odometerM", function () { return odometerM; }, function (v) { odometerM = v; });
     link("braking", function () { return braking; }, function (v) { braking = v; });
     link("brakeLatched", function () { return brakeLatched; }, function (v) { brakeLatched = v; });
     link("autoBraking", function () { return autoBraking; }, function (v) { autoBraking = v; });
